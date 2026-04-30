@@ -1,8 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "installCommand": "cd platform && npm install --legacy-peer-deps",
-  "buildCommand": "node scripts/sync-public-assets.mjs && cd platform && npm run build",
-  "outputDirectory": "platform/.next",
-  "regions": ["iad1"]
-}

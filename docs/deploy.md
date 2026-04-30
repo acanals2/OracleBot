@@ -12,7 +12,11 @@ Two services to ship: a Next.js platform on **Vercel**, and a BullMQ worker on
 1. Sign in at vercel.com with the account that should own the project.
 2. **Add New… → Project** → select `acanals2/OracleBot` from GitHub.
 3. Framework preset: **Next.js**.
-4. Root directory: leave at repo root — `vercel.json` handles the `cd platform` redirect.
+4. **Root Directory: set to `platform`.** Critical — Vercel reads the
+   package.json at the configured Root Directory to detect Next.js. The
+   repo-root `package.json` is a monorepo orchestrator with no `next`
+   dependency, so leaving Root at `./` fails detection. `platform/vercel.json`
+   adds the `--legacy-peer-deps` install flag.
 5. **Don't deploy yet.** Add env vars first (Settings → Environment Variables, scope = Production):
 
 | Key | Value source | Notes |
