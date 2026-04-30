@@ -11,6 +11,7 @@
  *   5. setCompleted — persists score, summary, and actual cost.
  */
 import type { Job } from 'bullmq';
+import type { Logger } from 'pino';
 import {
   setProvisioning,
   setRunning,
@@ -29,14 +30,17 @@ import {
   isBotTick,
 } from '../engine/index.js';
 import type { RawFinding } from '../engine/index.js';
+import { env } from '../env.js';
+import { logger as rootLogger } from '../logger.js';
 
-export async function processExecuteRun(job: Job<ExecuteRunJobData>) {
+export async function processExecuteRun(job: Job<ExecuteRunJobData>, parentLog?: Logger) {
   const { runId } = job.data;
-  console.log(`[run ${runId}] picked up by worker`);
+  const log = (parentLog ?? rootLogger).child({ runId });
+  log.info({ event: 'run.picked_up' }, 'run picked up');
 
   const run = await getRun(runId);
   if (!run) {
-    console.warn(`[run ${runId}] not found in DB — abandoning job`);
+    log.warn({ event: 'run.not_found' }, 'run not found in DB — abandoning job');
     return;
   }
 
@@ -46,11 +50,11 @@ export async function processExecuteRun(job: Job<ExecuteRunJobData>) {
     run.status === 'failed' ||
     run.status === 'canceled'
   ) {
-    console.log(`[run ${runId}] already terminal (${run.status}) — skip`);
+    log.info({ event: 'run.already_terminal', status: run.status }, 'run already terminal — skip');
     return;
   }
 
-  const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+  const anthropicApiKey = env.ANTHROPIC_API_KEY;
   if (!anthropicApiKey) {
     await setFailed(runId, 'ANTHROPIC_API_KEY is not set in worker environment');
     return;
@@ -96,13 +100,16 @@ export async function processExecuteRun(job: Job<ExecuteRunJobData>) {
             severity: event.severity,
             category: event.category,
           });
-          console.log(`[run ${runId}] finding: [${event.severity}] ${event.title}`);
+          log.info(
+            { event: 'run.finding_surfaced', severity: event.severity, category: event.category, title: event.title },
+            'finding surfaced',
+          );
         }
       }
     } finally {
       // Always tear down sandbox even if engine throws
       await sandbox.stop().catch((e: Error) => {
-        console.warn(`[run ${runId}] sandbox stop error:`, e.message);
+        log.warn({ event: 'run.sandbox_stop_error', err: e.message }, 'sandbox stop error');
       });
     }
 
@@ -128,12 +135,18 @@ export async function processExecuteRun(job: Job<ExecuteRunJobData>) {
       costCentsActual,
     });
 
-    console.log(
-      `[run ${runId}] completed — score: ${readinessScore}, findings: ${findings.length}, cost: $${(costCentsActual / 100).toFixed(2)}`,
+    log.info(
+      {
+        event: 'run.completed',
+        readinessScore,
+        findingCount: findings.length,
+        costCentsActual,
+      },
+      'run completed',
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error(`[run ${runId}] failed:`, msg);
+    log.error({ event: 'run.failed', err: msg }, 'run failed');
     await setFailed(runId, msg);
     throw e; // let BullMQ record the failure for retry
   }

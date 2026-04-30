@@ -10,11 +10,13 @@ import { RunCompletedEmail } from './email-templates/RunCompletedEmail.js';
 import { RunFailedEmail } from './email-templates/RunFailedEmail.js';
 import { WelcomeEmail } from './email-templates/WelcomeEmail.js';
 import type { SendEmailJobData } from '../queue-config.js';
+import { env } from '../env.js';
+import { logger } from '../logger.js';
 
 let _resend: Resend | null = null;
 function client(): Resend {
   if (_resend) return _resend;
-  const key = process.env.RESEND_API_KEY;
+  const key = env.RESEND_API_KEY;
   if (!key) throw new Error('RESEND_API_KEY is not set');
   _resend = new Resend(key);
   return _resend;
@@ -22,7 +24,7 @@ function client(): Resend {
 
 export async function processSendEmail(job: Job<SendEmailJobData>) {
   const { template, to, vars } = job.data;
-  const from = process.env.RESEND_FROM_EMAIL ?? 'Oracle Bot <hello@oraclebot.net>';
+  const from = env.RESEND_FROM_EMAIL ?? 'Oracle Bot <hello@oraclebot.net>';
 
   const node = (() => {
     switch (template) {
@@ -47,7 +49,7 @@ export async function processSendEmail(job: Job<SendEmailJobData>) {
 
   const result = await client().emails.send({ from, to, subject, html, text });
   if (result.error) throw new Error(`Resend error: ${result.error.message}`);
-  console.log(`[email] sent ${template} → ${to}`);
+  logger.info({ event: 'email.sent', template, to }, 'email sent');
 }
 
 function subjectFor(template: SendEmailJobData['template'], vars: Record<string, unknown>): string {

@@ -18,6 +18,7 @@
  * BotTick emitted every TICK_INTERVAL_MS with real rps + latency.
  */
 import type { EngineOpts, EngineEvent, BotTick, RawFinding } from './types.js';
+import { logger } from '../logger.js';
 
 const TICK_INTERVAL_MS = 5_000;
 const RATE_LIMIT_BURST = 50;
@@ -350,7 +351,7 @@ export async function* runApiMode(opts: EngineOpts): AsyncGenerator<EngineEvent>
 
   // Discover endpoints
   const endpoints = await discoverEndpoints(targetUrl);
-  console.log(`[api-bot] discovered ${endpoints.length} endpoints`);
+  logger.info({ event: 'api_bot.endpoints_discovered', count: endpoints.length }, 'api-bot endpoints discovered');
 
   // CORS check upfront
   await testCorsHeaders(targetUrl, state).catch(() => null);

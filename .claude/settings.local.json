@@ -27,7 +27,12 @@
       "Bash(railway whoami:*)",
       "Bash(export RAILWAY_API_TOKEN=\"8ac7532b-316e-4f8f-9dd4-15cca8b32db2\")",
       "Bash(export RAILWAY_TOKEN=\"8ac7532b-316e-4f8f-9dd4-15cca8b32db2\")",
-      "Bash(railway status:*)"
+      "Bash(railway status:*)",
+      "Bash(open -R /Users/astridelysse/Desktop/oraclebot/platform/.env.local)",
+      "Bash(open /Users/astridelysse/Desktop/oraclebot/platform/)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(git check-ignore:*)",
+      "Bash(git add:*)"
     ]
   }
 }
