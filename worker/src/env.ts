@@ -40,6 +40,12 @@ const Schema = z.object({
   // Concurrency (optional, with defaults)
   WORKER_RUN_CONCURRENCY: z.coerce.number().int().positive().default(4),
   WORKER_EMAIL_CONCURRENCY: z.coerce.number().int().positive().default(16),
+
+  // Health server (Railway healthcheck targets /readyz on this port)
+  PORT_HEALTH: z.coerce.number().int().positive().default(8080),
+
+  // Graceful shutdown — max time to wait for in-flight jobs (ms)
+  SHUTDOWN_DRAIN_MS: z.coerce.number().int().positive().default(25_000),
 });
 
 function format(error: z.ZodError): string {

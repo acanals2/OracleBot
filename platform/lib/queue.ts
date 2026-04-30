@@ -12,6 +12,8 @@
  */
 import { Queue, type ConnectionOptions } from 'bullmq';
 import IORedis from 'ioredis';
+import { logger } from './logger';
+import { env } from './env';
 
 export const QUEUES = {
   RUN_EXECUTION: 'run-execution',
@@ -61,11 +63,18 @@ let _connection: IORedis | null = null;
 
 function getConnection(): IORedis {
   if (_connection) return _connection;
-  const url = process.env.REDIS_URL;
-  if (!url) throw new Error('REDIS_URL is not set');
-  _connection = new IORedis(url, {
+  _connection = new IORedis(env.REDIS_URL, {
     maxRetriesPerRequest: null, // BullMQ requirement
-    enableReadyCheck: false,
+    enableReadyCheck: true,
+    retryStrategy: (times: number) => Math.min(times * 200, 5_000),
+    reconnectOnError: (err: Error) =>
+      /READONLY|ETIMEDOUT|ECONNRESET|EPIPE|EHOSTUNREACH/i.test(err.message),
+  });
+  _connection.on('error', (err: Error) => {
+    logger.warn({ event: 'redis.error', err: err.message }, 'redis client error');
+  });
+  _connection.on('reconnecting', (delay: number) => {
+    logger.warn({ event: 'redis.reconnecting', delayMs: delay }, 'redis reconnecting');
   });
   return _connection;
 }
@@ -87,10 +96,13 @@ export function runQueue() {
   _runQueue = new Queue(QUEUES.RUN_EXECUTION, {
     connection: getQueueConnection(),
     defaultJobOptions: {
-      attempts: 3,
+      attempts: 5,
       backoff: { type: 'exponential', delay: 5000 },
       removeOnComplete: { age: 60 * 60 * 24 * 7, count: 1000 },
-      removeOnFail: { age: 60 * 60 * 24 * 30 },
+      // Keep the most recent 5,000 fully-failed jobs in Redis for inspection
+      // and indefinitely (until evicted). The worker also writes them to the
+      // `dead_jobs` Postgres table so they survive Redis being wiped.
+      removeOnFail: { count: 5000 },
     },
   });
   return _runQueue;

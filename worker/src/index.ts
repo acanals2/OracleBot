@@ -4,9 +4,15 @@
  * Deploy target: Railway service. Build: `npm run build`. Start: `npm start`.
  *
  * Concurrency:
- *   - Run-execution workers process 4 runs in parallel by default
- *   - Email workers process 16 in parallel (network-bound, fast)
+ *   - Run-execution workers process N runs in parallel (default 4)
+ *   - Email workers process N in parallel (default 16, network-bound)
  *   - Billing reconciliation: 2 in parallel (DB-heavy, infrequent)
+ *
+ * Resilience (Phase 2):
+ *   - ioredis retries forever on transient failures
+ *   - Jobs that exhaust attempts are persisted to `dead_jobs` (Postgres)
+ *   - SIGTERM drains in-flight jobs up to SHUTDOWN_DRAIN_MS, then exits
+ *   - HTTP health server exposes /healthz + /readyz for the orchestrator
  */
 // IMPORTANT: env.js MUST be the first import — it loads dotenv and validates
 // process.env. Sentry must come second so its init sees the validated DSN
@@ -14,14 +20,20 @@
 import { env } from './env.js';
 import './sentry.js';
 import * as Sentry from '@sentry/node';
-import { Worker } from 'bullmq';
+import { Worker, type Job } from 'bullmq';
 import { QUEUES, JOB_NAMES, getConnection } from './queue-config.js';
 import { processExecuteRun } from './processors/run.js';
 import { processSendEmail } from './processors/email.js';
 import { logger, newTraceId, withTrace } from './logger.js';
+import { startHealthServer } from './health.js';
+import { db, deadJobs } from './db.js';
 
 logger.info({ event: 'worker.starting' }, 'worker starting');
 
+// ── Health probe HTTP server (Railway healthcheck targets /readyz) ──────────
+const healthServer = startHealthServer({ port: env.PORT_HEALTH });
+
+// ── BullMQ workers ──────────────────────────────────────────────────────────
 const runWorker = new Worker(
   QUEUES.RUN_EXECUTION,
   async (job) => {
@@ -29,8 +41,6 @@ const runWorker = new Worker(
     const log = withTrace(traceId).child({ queue: 'run', jobId: job.id, jobName: job.name });
     if (job.name === JOB_NAMES.EXECUTE_RUN) return processExecuteRun(job as never, log);
     if (job.name === JOB_NAMES.CANCEL_RUN) {
-      // Real engine: tear down sandbox here. For now, status is already set
-      // in the API route (markRunCanceled). The processor just acknowledges.
       log.info({ event: 'cancel.acknowledged', runId: job.data.runId }, 'cancel acknowledged');
       return;
     }
@@ -53,27 +63,98 @@ const billingWorker = new Worker(
   { connection: getConnection(), concurrency: 2 },
 );
 
-for (const [name, worker] of [
+// ── Lifecycle wiring ────────────────────────────────────────────────────────
+const workers: Array<readonly [string, Worker]> = [
   ['run', runWorker],
   ['email', emailWorker],
   ['billing', billingWorker],
-] as const) {
+];
+
+for (const [name, worker] of workers) {
   worker.on('completed', (job) => {
-    logger.info({ event: 'job.completed', queue: name, jobId: job.id, jobName: job.name }, 'job completed');
-  });
-  worker.on('failed', (job, err) => {
-    logger.error(
-      { event: 'job.failed', queue: name, jobId: job?.id, jobName: job?.name, err: { name: err?.name, message: err?.message, stack: err?.stack } },
-      'job failed',
+    logger.info(
+      { event: 'job.completed', queue: name, jobId: job.id, jobName: job.name },
+      'job completed',
     );
-    Sentry.captureException(err, { tags: { queue: name, jobName: job?.name }, extra: { jobId: job?.id } });
+  });
+  worker.on('failed', async (job, err) => {
+    if (!job) {
+      logger.error({ event: 'job.failed_no_job', queue: name, err: err?.message }, 'failure with no job');
+      return;
+    }
+
+    const exhausted = job.attemptsMade >= (job.opts.attempts ?? 1);
+    logger.error(
+      {
+        event: exhausted ? 'job.dead_lettered' : 'job.failed',
+        queue: name,
+        jobId: job.id,
+        jobName: job.name,
+        attemptsMade: job.attemptsMade,
+        attemptsAllowed: job.opts.attempts ?? 1,
+        err: { name: err?.name, message: err?.message, stack: err?.stack },
+      },
+      exhausted ? 'job dead-lettered' : 'job failed (will retry)',
+    );
+    Sentry.captureException(err, { tags: { queue: name, jobName: job.name }, extra: { jobId: job.id } });
+
+    // Permanent failure → persist to Postgres so it survives Redis wipes.
+    if (exhausted) {
+      try {
+        await persistDeadJob(name, job, err);
+      } catch (persistErr) {
+        // Don't fail-loop the worker on DLQ persistence errors. Just log.
+        logger.error(
+          { event: 'dead_letter.persist_failed', err: (persistErr as Error).message },
+          'failed to persist dead job',
+        );
+        Sentry.captureException(persistErr);
+      }
+    }
+  });
+  worker.on('error', (err) => {
+    logger.error({ event: 'worker.error', queue: name, err: err.message }, 'worker error');
+    Sentry.captureException(err, { tags: { queue: name } });
   });
 }
 
+async function persistDeadJob(queue: string, job: Job, err?: Error): Promise<void> {
+  await db.insert(deadJobs).values({
+    queue,
+    jobName: job.name,
+    jobId: String(job.id ?? 'unknown'),
+    payload: job.data as Record<string, unknown>,
+    failedReason: err?.message ?? job.failedReason ?? null,
+    stack: err?.stack ?? null,
+    attemptsMade: job.attemptsMade,
+  });
+}
+
+// ── Graceful shutdown ──────────────────────────────────────────────────────
+let shuttingDown = false;
 const shutdown = async (signal: string) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
   logger.info({ event: 'worker.shutdown', signal }, 'received signal, shutting down');
-  await Promise.allSettled([runWorker.close(), emailWorker.close(), billingWorker.close()]);
-  await Sentry.flush(2000).catch(() => undefined);
+
+  // Stop accepting new health requests immediately.
+  healthServer.close();
+
+  // Race: BullMQ's worker.close() awaits in-flight jobs. We bound the wait so
+  // a hung job can't keep the container alive past Railway's grace period.
+  const drainTimeout = new Promise<void>((resolve) =>
+    setTimeout(() => {
+      logger.warn(
+        { event: 'shutdown.drain_timeout', timeoutMs: env.SHUTDOWN_DRAIN_MS },
+        'drain timed out, force-closing',
+      );
+      resolve();
+    }, env.SHUTDOWN_DRAIN_MS),
+  );
+  const drainAll = Promise.allSettled(workers.map(([, w]) => w.close()));
+  await Promise.race([drainAll, drainTimeout]);
+
+  await Sentry.flush(2_000).catch(() => undefined);
   process.exit(0);
 };
 
@@ -85,7 +166,10 @@ process.on('unhandledRejection', (reason) => {
   Sentry.captureException(reason);
 });
 process.on('uncaughtException', (err) => {
-  logger.fatal({ event: 'process.uncaught_exception', err: { name: err.name, message: err.message, stack: err.stack } }, 'uncaught exception');
+  logger.fatal(
+    { event: 'process.uncaught_exception', err: { name: err.name, message: err.message, stack: err.stack } },
+    'uncaught exception',
+  );
   Sentry.captureException(err);
 });
 
@@ -95,6 +179,7 @@ logger.info(
     runConcurrency: env.WORKER_RUN_CONCURRENCY,
     emailConcurrency: env.WORKER_EMAIL_CONCURRENCY,
     billingConcurrency: 2,
+    healthPort: env.PORT_HEALTH,
   },
   'worker up',
 );

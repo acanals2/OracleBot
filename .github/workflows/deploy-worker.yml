@@ -1,0 +1,36 @@
+name: Deploy worker (Railway)
+
+# Triggers a Railway deploy whenever main is updated and worker code changes.
+# Vercel handles platform deploys automatically via its GitHub integration —
+# no workflow needed for that side.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'worker/**'
+      - '.github/workflows/deploy-worker.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Railway up
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli
+      - name: Deploy
+        env:
+          # Set RAILWAY_TOKEN as a GitHub Actions secret (project-scoped token).
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::error::RAILWAY_TOKEN secret not set; skipping deploy"
+            exit 1
+          fi
+          railway up --service worker --detach

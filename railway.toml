@@ -1,0 +1,19 @@
+# Railway deploy config for the worker service.
+# Place at repo root; in Railway service settings set "Root Directory" to
+# `worker/` so this file applies to that service only.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "worker/Dockerfile"
+
+[deploy]
+# Healthcheck targets the /readyz endpoint exposed by worker/src/health.ts.
+# Railway will mark the deploy unhealthy and roll back if /readyz doesn't
+# return 200 within startCommandTimeoutSeconds.
+healthcheckPath = "/readyz"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+# Send SIGTERM and wait this long before SIGKILL. Worker drains in-flight
+# jobs up to SHUTDOWN_DRAIN_MS (25s default) so 30s gives a 5s buffer.
+gracePeriodSeconds = 30

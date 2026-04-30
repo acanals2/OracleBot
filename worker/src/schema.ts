@@ -387,6 +387,29 @@ export const shareLinks = pgTable(
 );
 
 // ────────────────────────────────────────────────────────────────────────────
+// Dead-letter queue (mirrors platform/lib/db/schema.ts)
+// ────────────────────────────────────────────────────────────────────────────
+
+export const deadJobs = pgTable(
+  'dead_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    queue: text('queue').notNull(),
+    jobName: text('job_name').notNull(),
+    jobId: text('job_id').notNull(),
+    payload: jsonb('payload').notNull(),
+    failedReason: text('failed_reason'),
+    stack: text('stack'),
+    attemptsMade: integer('attempts_made').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    queueIdx: index('dead_jobs_queue_idx').on(t.queue, t.createdAt),
+    createdAtIdx: index('dead_jobs_created_at_idx').on(t.createdAt),
+  }),
+);
+
+// ────────────────────────────────────────────────────────────────────────────
 // Relations
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -459,3 +482,5 @@ export type RunEvent = typeof runEvents.$inferSelect;
 export type RunFinding = typeof runFindings.$inferSelect;
 export type RunMetric = typeof runMetrics.$inferSelect;
 export type ShareLink = typeof shareLinks.$inferSelect;
+export type DeadJob = typeof deadJobs.$inferSelect;
+export type NewDeadJob = typeof deadJobs.$inferInsert;

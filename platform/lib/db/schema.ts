@@ -501,6 +501,33 @@ export const shareLinks = pgTable(
 );
 
 // ────────────────────────────────────────────────────────────────────────────
+// Dead-letter queue
+//
+// BullMQ jobs that exhaust their retry attempts are persisted here so they're
+// inspectable from the admin UI and don't disappear when Redis is wiped.
+// One row per dead job; queries filter by `queue` to scope per worker pool.
+// ────────────────────────────────────────────────────────────────────────────
+
+export const deadJobs = pgTable(
+  'dead_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    queue: text('queue').notNull(),
+    jobName: text('job_name').notNull(),
+    jobId: text('job_id').notNull(),
+    payload: jsonb('payload').notNull(),
+    failedReason: text('failed_reason'),
+    stack: text('stack'),
+    attemptsMade: integer('attempts_made').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    queueIdx: index('dead_jobs_queue_idx').on(t.queue, t.createdAt),
+    createdAtIdx: index('dead_jobs_created_at_idx').on(t.createdAt),
+  }),
+);
+
+// ────────────────────────────────────────────────────────────────────────────
 // Workspaces (codebase preview surface)
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -630,3 +657,5 @@ export type RunMetric = typeof runMetrics.$inferSelect;
 export type ShareLink = typeof shareLinks.$inferSelect;
 export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
+export type DeadJob = typeof deadJobs.$inferSelect;
+export type NewDeadJob = typeof deadJobs.$inferInsert;

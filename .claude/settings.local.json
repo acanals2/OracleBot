@@ -32,7 +32,16 @@
       "Bash(open /Users/astridelysse/Desktop/oraclebot/platform/)",
       "Bash(echo \"EXIT=$?\")",
       "Bash(git check-ignore:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(gh auth:*)",
+      "Bash(ssh -T git@github.com)",
+      "Bash(ssh-keygen -t ed25519 -C \"astridelysse@oraclebot\" -f ~/.ssh/id_ed25519 -N \"\")",
+      "Bash(mkdir -p ~/.ssh)",
+      "Bash(chmod 700 ~/.ssh)",
+      "Bash(ssh-keyscan -t ed25519 github.com)",
+      "Bash(git remote:*)"
     ]
   }
 }
