@@ -1,10 +1,13 @@
 # Railway deploy config for the worker service.
-# Place at repo root; in Railway service settings set "Root Directory" to
-# `worker/` so this file applies to that service only.
+# Place at repo root. The worker service in Railway MUST have its
+# "Root Directory" set to `worker` — that makes `worker/` the Docker
+# build context, so the Dockerfile's COPY commands resolve correctly
+# (package-lock.json lives at worker/package-lock.json, not repo root).
 
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "worker/Dockerfile"
+# Path is relative to the service's Root Directory.
+dockerfilePath = "Dockerfile"
 
 [deploy]
 # Healthcheck targets the /readyz endpoint exposed by worker/src/health.ts.

@@ -39,8 +39,12 @@ Two services to ship: a Next.js platform on **Vercel**, and a BullMQ worker on
 You should already have a Railway project containing Redis. Add the worker:
 
 1. **+ New Service → Deploy from GitHub** → select `acanals2/OracleBot`.
-2. **Settings → Service → Root Directory** = `worker`.
-3. **Settings → Build** = Dockerfile (auto-detected via `railway.toml`).
+2. **Settings → Service → Root Directory** = `worker` (this is critical —
+   it makes `worker/` the Docker build context so the Dockerfile's
+   `COPY package-lock.json` resolves; without it Railway uses repo root
+   where no lock file lives).
+3. **Settings → Build** = Dockerfile (auto-detected via `railway.toml`,
+   path resolves to `worker/Dockerfile`).
 4. **Settings → Variables** — paste these (use the **private** Redis URL from
    the Redis service in this project — copy the variable named
    `REDIS_PRIVATE_URL` or build it as `redis://default:<password>@redis.railway.internal:6379`):

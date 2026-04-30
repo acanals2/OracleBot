@@ -35,3 +35,4 @@ lib/db/migrations/meta/_journal.json.bak
 oracle-workspaces/
 oracle-checkpoints/
 
+.vercel
