@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OracleBot — Synthetic users for staging environments</title>
+<meta name="description" content="OracleBot populates your staging environment with synthetic users that sign up, place orders, send messages, and exercise every flow. Launch knowing it works.">
+<meta name="theme-color" content="#07080B">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+
+<!-- ========== NAV ========== -->
+<header class="nav">
+  <a href="index.html" class="nav__brand" aria-label="OracleBot home">
+    <span class="mark">O</span>
+    <span><b>OracleBot</b><small>v0.1 · early access</small></span>
+  </a>
+  <nav class="nav__links">
+    <a href="#problem">Problem</a>
+    <a href="#how">How it works</a>
+    <a href="#uses">Use cases</a>
+    <a href="#compare">Compare</a>
+    <a href="#faq">FAQ</a>
+    <a href="#commitments">Commitments</a>
+  </nav>
+  <div class="nav__cta">
+    <span class="status">Waitlist open</span>
+    <a href="#waitlist" class="btn btn--signal">Join waitlist <span class="arrow">&rarr;</span></a>
+  </div>
+  <button class="nav__burger" aria-label="Menu"><span></span><span></span><span></span></button>
+</header>
+
+<main>
+
+  <!-- ========== HERO ========== -->
+  <section class="hero">
+    <div class="wrap hero__inner">
+      <div class="hero__copy">
+        <span class="eyebrow" data-reveal>Pre-launch readiness · For staging environments</span>
+        <h1 class="hero__title" data-reveal data-reveal-delay="1">
+          Synthetic users
+          <span class="softer">that behave</span>
+          <em>like real ones.</em>
+        </h1>
+        <p class="hero__sub" data-reveal data-reveal-delay="2">
+          OracleBot populates your staging environment with thousands of personas that sign up, place orders, send messages, and exercise every flow your app exposes &mdash; so you launch knowing it works under real-feeling load.
+        </p>
+        <div class="hero__ctas" data-reveal data-reveal-delay="3">
+          <a href="#waitlist" class="btn btn--signal">Join the waitlist <span class="arrow">&rarr;</span></a>
+          <a href="#how" class="btn btn--ghost">How it works <span class="arrow">&rarr;</span></a>
+        </div>
+        <div class="hero__meta" data-reveal data-reveal-delay="4">
+          <span>Staging only &mdash; never production</span>
+          <span>Owner-verified targets</span>
+          <span>Bring your own personas</span>
+        </div>
+      </div>
+
+      <div class="hero__visual" data-reveal data-reveal-delay="2">
+        <div class="terminal" aria-hidden="true">
+          <div class="terminal__head">
+            <div class="terminal__dots"><i></i><i></i><i></i></div>
+            <span class="terminal__title">~/oraclebot &mdash; staging.acme.dev</span>
+          </div>
+<pre class="terminal__body"><span class="prompt">$</span> <span class="ink">oraclebot run</span> <span class="flag">--target</span> staging.acme.dev \
+    <span class="flag">--personas</span> trader-archetypes \
+    <span class="flag">--rate</span> 200rpm <span class="flag">--duration</span> 4h
+
+<span class="dim">[12:04:02]</span> <span class="ok">●</span> spawned <span class="num">412</span> personas
+<span class="dim">[12:04:08]</span> signups <span class="num">142</span> · orders <span class="num">39</span> · msgs <span class="num">8</span>
+<span class="dim">[12:04:14]</span> flow exercised:
+            <span class="ink">signup → fund → place_order → close</span>
+<span class="dim">[12:04:21]</span> <span class="ok">●</span> 4xx rate <span class="num">0.4%</span> · p95 <span class="num">312ms</span>
+<span class="dim">[12:04:27]</span> persona <span class="ink">eli_84</span> hit <span class="flag">/api/orders</span> 500 ⤴
+            <span class="dim">→ flagged for review</span>
+<span class="dim">[12:04:33]</span> ramp <span class="num">412</span> → <span class="num">1,800</span> over 6m<span class="terminal__cursor"></span></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap hero__floor">
+      <span>oraclebot.net</span>
+      <span>Synthetic users for pre-launch sites</span>
+      <span>2026 · Early access</span>
+    </div>
+  </section>
+
+  <!-- ========== PROOF / PROVENANCE ========== -->
+  <section class="proof">
+    <div class="wrap proof__row">
+      <span class="proof__label">Built for teams shipping</span>
+      <div class="proof__items" aria-hidden="true">
+        <span>trading platforms</span>
+        <span>marketplaces</span>
+        <span>signals products</span>
+        <span>social apps</span>
+        <span>SaaS dashboards</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PROBLEM ========== -->
+  <section class="problem" id="problem">
+    <div class="wrap">
+      <div class="problem__grid">
+        <div class="problem__left" data-reveal>
+          <span class="eyebrow eyebrow--muted">The pre-launch problem</span>
+          <h2 class="display display--lg">An empty staging app <em>is not a tested staging app.</em></h2>
+          <p>You can render every screen, write every test, and still discover on launch day that the signup form breaks at scale, the order book skews when 400 users place trades in the same minute, and the recommendations feed has nothing to recommend because nobody&apos;s ever bought anything in staging.</p>
+        </div>
+        <ul class="problem__list" data-reveal data-reveal-delay="2">
+          <li>
+            <span class="x">[ &times; ]</span>
+            <div>
+              <h4>Staging is empty</h4>
+              <p>No users. No history. No one&apos;s clicked anything. Your QA flows aren&apos;t exercising your app the way real customers will.</p>
+            </div>
+          </li>
+          <li>
+            <span class="x">[ &times; ]</span>
+            <div>
+              <h4>Seed data is brittle</h4>
+              <p>Ten hand-crafted &quot;test users&quot; don&apos;t catch race conditions, hot-spot keys, or feed algorithms that fail under skewed populations.</p>
+            </div>
+          </li>
+          <li>
+            <span class="x">[ &times; ]</span>
+            <div>
+              <h4>Load tests aren&apos;t behavior tests</h4>
+              <p>Hammering one endpoint with k6 tells you about throughput. It doesn&apos;t tell you what happens when 30k people actually <em>use</em> your product.</p>
+            </div>
+          </li>
+          <li>
+            <span class="x">[ &times; ]</span>
+            <div>
+              <h4>Demos look dead</h4>
+              <p>Investor demos, design reviews, partner walkthroughs. A populated staging environment is the difference between &quot;coming soon&quot; and &quot;here&apos;s what it looks like.&quot;</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== HOW IT WORKS ========== -->
+  <section class="how" id="how">
+    <div class="wrap">
+      <div class="section__head" data-reveal>
+        <span class="eyebrow">How it works</span>
+        <h2 class="display display--lg">Three steps from <em>empty to populated.</em></h2>
+        <p class="lede">Point OracleBot at a staging URL you own. Pick or design personas. We populate, exercise, and report &mdash; without ever touching production.</p>
+      </div>
+
+      <div class="how__steps">
+        <article class="step" data-reveal data-reveal-delay="1">
+          <span class="step__num">01 / Authorize</span>
+          <h3>Verify the target.</h3>
+          <p>Drop a DNS TXT record or sign in with OAuth so we know it&apos;s your staging environment. We refuse to run against domains we can&apos;t prove you own.</p>
+          <pre class="step__code"><span class="c"># oraclebot.net &mdash; verify.txt</span>
+<span class="k">TXT</span> staging.acme.dev
+  <span class="s">&quot;oraclebot-verify=8f3c...&quot;</span></pre>
+        </article>
+        <article class="step" data-reveal data-reveal-delay="2">
+          <span class="step__num">02 / Choose personas</span>
+          <h3>Pick a population.</h3>
+          <p>Start from a vertical template &mdash; trader archetypes, marketplace buyers/sellers, social creators, B2B teams &mdash; or compose your own with locale, demographic, and behavior profiles.</p>
+          <pre class="step__code"><span class="k">personas</span>:
+  template: <span class="s">trader-archetypes</span>
+  size: <span class="s">2400</span>
+  mix: <span class="s">{ scalper: 0.4, swing: 0.4, hodl: 0.2 }</span></pre>
+        </article>
+        <article class="step" data-reveal data-reveal-delay="3">
+          <span class="step__num">03 / Run &amp; observe</span>
+          <h3>Watch them use your app.</h3>
+          <p>Personas sign up, fund, browse, post, message, and check out at the rates you set. We surface every 4xx, every timeout, every flow that broke &mdash; piped into Slack, Linear, or your tool of choice.</p>
+          <pre class="step__code"><span class="k">$</span> oraclebot run <span class="s">--rate 200rpm --duration 4h</span>
+<span class="c">→ 39 orders · 0.4% 4xx · 1 flow flagged</span></pre>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== USE CASES ========== -->
+  <section class="uses" id="uses">
+    <div class="wrap">
+      <div class="section__head" data-reveal>
+        <span class="eyebrow">Use cases</span>
+        <h2 class="display display--lg">For every team launching <em>something real.</em></h2>
+        <p class="lede">OracleBot is most pointed at teams shipping new products where realistic activity is the missing ingredient between &quot;tests pass&quot; and &quot;works for users.&quot;</p>
+      </div>
+
+      <div class="uses__grid">
+        <article class="use" data-reveal data-reveal-delay="1">
+          <span class="use__tag">Vertical V1</span>
+          <h3>Trading &amp; signals platforms</h3>
+          <p>Trader archetypes that fund accounts, place market and limit orders, react to price moves, and message channels. Stress-test the order book and watch your matching engine before real money is on it.</p>
+          <div class="use__chips">
+            <span>order placement</span>
+            <span>order book skew</span>
+            <span>websocket fan-out</span>
+            <span>signal channels</span>
+          </div>
+          <p class="use__more"><a href="trading.html">Pre-launch readiness for trading &amp; fintech <span class="arrow">&rarr;</span></a></p>
+        </article>
+        <article class="use" data-reveal data-reveal-delay="2">
+          <span class="use__tag">Marketplaces</span>
+          <h3>Two-sided marketplaces</h3>
+          <p>A balanced population of buyers and sellers. Listings get created, browsed, messaged, and bought, so search ranking, recommendations, and abuse filters have a real population to learn against.</p>
+          <div class="use__chips">
+            <span>buyer/seller mix</span>
+            <span>search ranking</span>
+            <span>recs cold-start</span>
+            <span>messaging</span>
+          </div>
+        </article>
+        <article class="use" data-reveal data-reveal-delay="3">
+          <span class="use__tag">Social &amp; creator</span>
+          <h3>Social products &amp; feeds</h3>
+          <p>Personas with follow graphs, posting cadence, and reaction patterns. Cold-start your feed, exercise notifications, and find out whether your timeline algorithm has anything to show new users.</p>
+          <div class="use__chips">
+            <span>follow graphs</span>
+            <span>feed ranking</span>
+            <span>notifications</span>
+            <span>moderation</span>
+          </div>
+        </article>
+        <article class="use" data-reveal data-reveal-delay="4">
+          <span class="use__tag">SaaS &amp; B2B</span>
+          <h3>Workspaces &amp; dashboards</h3>
+          <p>Teams of 3 to 30 with realistic invite flows, role splits, and product activity. Ideal for demoing to design partners, exercising billing, and finding the seat-limit bug nobody hits with a single test account.</p>
+          <div class="use__chips">
+            <span>invite flows</span>
+            <span>roles &amp; permissions</span>
+            <span>billing edges</span>
+            <span>demo data</span>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== COMPARE ========== -->
+  <section class="compare" id="compare">
+    <div class="wrap">
+      <div class="section__head" data-reveal>
+        <span class="eyebrow">Where we fit</span>
+        <h2 class="display display--lg">Not a load tester. <em>Not a QA bot.</em></h2>
+        <p class="lede">There&apos;s a real gap between hammering an endpoint and clicking through one user journey. OracleBot fills it &mdash; we generate the population and let it loose.</p>
+      </div>
+
+      <div class="compare__table" data-reveal>
+        <div class="compare__row is-head">
+          <div>&nbsp;</div>
+          <div>k6 / Locust</div>
+          <div>Mabl / testRigor</div>
+          <div class="self">OracleBot</div>
+        </div>
+        <div class="compare__row">
+          <div class="feat">Generates a realistic user population</div>
+          <div class="cell no" data-col="k6 / Locust">no</div>
+          <div class="cell no" data-col="Mabl / testRigor">no</div>
+          <div class="cell yes" data-col="OracleBot">yes</div>
+        </div>
+        <div class="compare__row">
+          <div class="feat">Personas exercise full product flows</div>
+          <div class="cell no" data-col="k6 / Locust">scripted endpoints</div>
+          <div class="cell partial" data-col="Mabl / testRigor">single journey</div>
+          <div class="cell yes" data-col="OracleBot">end-to-end at population scale</div>
+        </div>
+        <div class="compare__row">
+          <div class="feat">Vertical-aware behavior templates</div>
+          <div class="cell no" data-col="k6 / Locust">no</div>
+          <div class="cell no" data-col="Mabl / testRigor">no</div>
+          <div class="cell yes" data-col="OracleBot">trading, marketplace, social…</div>
+        </div>
+        <div class="compare__row">
+          <div class="feat">Populates demo &amp; design-partner environments</div>
+          <div class="cell no" data-col="k6 / Locust">no</div>
+          <div class="cell no" data-col="Mabl / testRigor">no</div>
+          <div class="cell yes" data-col="OracleBot">yes</div>
+        </div>
+        <div class="compare__row">
+          <div class="feat">Surfaces production-like throughput</div>
+          <div class="cell yes" data-col="k6 / Locust">core strength</div>
+          <div class="cell no" data-col="Mabl / testRigor">no</div>
+          <div class="cell partial" data-col="OracleBot">staging-scoped</div>
+        </div>
+        <div class="compare__row">
+          <div class="feat">Owner-verified targets only</div>
+          <div class="cell no" data-col="k6 / Locust">user discretion</div>
+          <div class="cell partial" data-col="Mabl / testRigor">via account</div>
+          <div class="cell yes" data-col="OracleBot">DNS or OAuth</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== FAQ ========== -->
+  <section class="faq" id="faq">
+    <div class="wrap">
+      <div class="section__head" data-reveal>
+        <span class="eyebrow">Common questions</span>
+        <h2 class="display display--lg">Things teams ask <em>before they sign up.</em></h2>
+      </div>
+
+      <div class="faq__list" data-reveal>
+        <div class="faq__item">
+          <button class="faq__q">
+            <span>Can I point OracleBot at a production site?</span>
+            <span class="marker">+</span>
+          </button>
+          <div class="faq__a"><div class="faq__a-inner">No. OracleBot is staging-only by design. You verify ownership of the target via a DNS TXT record or OAuth, and we refuse to run against environments that look like production. This is a deliberate constraint &mdash; it eliminates the abuse vector that plagues general-purpose load tools and means we don&apos;t end up on Cloudflare blocklists.</div></div>
+        </div>
+        <div class="faq__item">
+          <button class="faq__q">
+            <span>How is this different from Faker, factories, or seed scripts?</span>
+            <span class="marker">+</span>
+          </button>
+          <div class="faq__a"><div class="faq__a-inner">Faker fills your database with rows. OracleBot generates personas that actually <em>use</em> your application: hit your real signup endpoint, complete onboarding, place orders through your matching engine, send messages through your real notification path. The artifacts in your DB are a side effect of the activity, not the goal.</div></div>
+        </div>
+        <div class="faq__item">
+          <button class="faq__q">
+            <span>How &quot;human-like&quot; are the personas, really?</span>
+            <span class="marker">+</span>
+          </button>
+          <div class="faq__a"><div class="faq__a-inner">In the Phase 1 product, personas operate via your public API or a headless browser, with realistic timing distributions, session lengths, error retry behavior, and decision branching keyed off content they see. They will not pass a sophisticated bot-detection challenge designed to catch them &mdash; that&apos;s outside our scope. We&apos;re aiming at &quot;exercises every flow a real cohort would&quot;, not &quot;defeats your CAPTCHA.&quot;</div></div>
+        </div>
+        <div class="faq__item">
+          <button class="faq__q">
+            <span>What about data privacy?</span>
+            <span class="marker">+</span>
+          </button>
+          <div class="faq__a"><div class="faq__a-inner">All persona data is synthetic &mdash; generated, never sourced from real people. Your staging environment&apos;s data stays in your staging environment. We retain run logs (request counts, error rates, flagged flows) on our side for the duration of the run and a configurable window after.</div></div>
+        </div>
+        <div class="faq__item">
+          <button class="faq__q">
+            <span>What does it cost?</span>
+            <span class="marker">+</span>
+          </button>
+          <div class="faq__a"><div class="faq__a-inner">Early-access partners are priced individually while we figure out what feels fair (likely usage-based on persona-hours). Join the waitlist and we&apos;ll talk through your scenario before quoting anything. No credit card on the waitlist.</div></div>
+        </div>
+        <div class="faq__item">
+          <button class="faq__q">
+            <span>When can I actually use it?</span>
+            <span class="marker">+</span>
+          </button>
+          <div class="faq__a"><div class="faq__a-inner">We&apos;re running concierge engagements with a handful of design partners now &mdash; we operate the runner on your behalf and deliver results. Self-serve product follows once we&apos;ve learned what the right defaults are. Waitlist members hear first.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== COMMITMENTS ========== -->
+  <section class="commitments" id="commitments">
+    <div class="wrap">
+      <div class="section__head" data-reveal>
+        <span class="eyebrow">Commitments</span>
+        <h2 class="display display--lg">What OracleBot will <em>never</em> do.</h2>
+        <p class="lede">Some constraints are how the product works. These are how the product <em>stays</em> the product.</p>
+      </div>
+
+      <ul class="commitments__list" data-reveal data-reveal-delay="1">
+        <li>
+          <span class="commitments__mark" aria-hidden="true">&#9670;</span>
+          <div>
+            <h4>Never run against production.</h4>
+            <p>OracleBot refuses targets that look like live production environments. Every run requires a verified staging or pre-launch target &mdash; DNS TXT or OAuth proof &mdash; and we monitor for production tells (live TLS chain on apex, real user traffic, public DNS) and abort the run if we see them.</p>
+          </div>
+        </li>
+        <li>
+          <span class="commitments__mark" aria-hidden="true">&#9670;</span>
+          <div>
+            <h4>Never run against a domain you don&apos;t own.</h4>
+            <p>Verification is gating, not a checkbox. No verified ownership, no run. We will not &quot;make an exception&quot; because a deal is on the line &mdash; the constraint is the product.</p>
+          </div>
+        </li>
+        <li>
+          <span class="commitments__mark" aria-hidden="true">&#9670;</span>
+          <div>
+            <h4>Never inflate metrics for any platform we don&apos;t operate.</h4>
+            <p>OracleBot is a pre-launch readiness tool. It is not a service for boosting signups, followers, transactions, or any other number on a platform someone else runs. Every run is logged with the verified target and operator identity; abuse is investigable and we cooperate with takedown requests against operators who circumvent our verification.</p>
+          </div>
+        </li>
+        <li>
+          <span class="commitments__mark" aria-hidden="true">&#9670;</span>
+          <div>
+            <h4>Never sell or share what we observe.</h4>
+            <p>What your synthetic users do in your staging environment stays in your account. We retain run logs (request counts, error rates, flagged flows) for the duration of the run and a configurable window after &mdash; and that&apos;s it. No training corpora, no benchmarks across customers, no leaks.</p>
+          </div>
+        </li>
+      </ul>
+
+      <p class="commitments__footnote" data-reveal data-reveal-delay="2"><em>These commitments are written into our terms and enforced in the runner. If we ever loosen them, you&apos;ll see it in a changelog before it ships.</em></p>
+    </div>
+  </section>
+
+  <!-- ========== WAITLIST ========== -->
+  <section class="waitlist" id="waitlist">
+    <div class="wrap waitlist__inner" data-reveal>
+      <span class="eyebrow">Early access</span>
+      <h2>Get on the list <em>before launch.</em></h2>
+      <p>If you&apos;re shipping something with a real population &mdash; trading, marketplace, social, B2B &mdash; tell us where to reach you. We&apos;ll get back within a few days with whether we&apos;re a fit and what a small pilot would look like.</p>
+
+      <form class="waitlist__form" id="waitlistForm" data-waitlist-form>
+        <input type="email" name="email" placeholder="you@company.com" autocomplete="email" required>
+        <button type="submit">Join waitlist &rarr;</button>
+      </form>
+
+      <div class="waitlist__meta">
+        <span>No spam</span>
+        <span>No credit card</span>
+        <span>Reply within 3 business days</span>
+      </div>
+
+      <div class="waitlist__thanks">
+        <span>● Thanks &mdash; we&apos;ll be in touch.</span>
+        <span class="mono" style="color:var(--ink-dim)">Check your inbox for a confirmation.</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ========== FOOTER ========== -->
+<footer class="footer">
+  <div class="wrap footer__grid">
+    <div class="footer__brand">
+      <div class="mark-row">
+        <span class="nav__brand"><span class="mark">O</span></span>
+        <b>OracleBot</b>
+      </div>
+      <p>Synthetic users for staging environments. Populate, exercise, and pre-launch with the population real users will give you on day one.</p>
+    </div>
+    <div>
+      <h5>Product</h5>
+      <ul>
+        <li><a href="#problem">Problem</a></li>
+        <li><a href="#how">How it works</a></li>
+        <li><a href="#uses">Use cases</a></li>
+        <li><a href="#compare">Compare</a></li>
+        <li><a href="#commitments">Commitments</a></li>
+        <li><a href="trading.html">Trading &amp; fintech</a></li>
+        <li><a href="sample-readiness-report.html">Sample readiness report</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>Verticals</h5>
+      <ul>
+        <li><a href="trading.html">Trading &amp; signals</a></li>
+        <li>Marketplaces</li>
+        <li>Social &amp; creator</li>
+        <li>SaaS &amp; B2B</li>
+      </ul>
+    </div>
+    <div>
+      <h5>Company</h5>
+      <ul>
+        <li><a href="#waitlist">Waitlist</a></li>
+        <li>Privacy</li>
+        <li>Terms</li>
+        <li>hello@oraclebot.net</li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap footer__bottom">
+    <span>&copy; 2026 OracleBot</span>
+    <span>Staging only · Owner-verified · Synthetic</span>
+    <span>oraclebot.net</span>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

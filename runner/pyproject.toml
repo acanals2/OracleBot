@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oraclebot-runner"
+version = "0.1.0"
+description = "OracleBot operator CLI — verify gate, persona runs, reports"
+requires-python = ">=3.9"
+dependencies = [
+  "typer==0.15.1",
+  "httpx==0.28.1",
+]
+
+[project.scripts]
+oraclebot = "oraclebot.cli:run_cli"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["oraclebot*"]

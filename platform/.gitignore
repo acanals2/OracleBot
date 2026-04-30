@@ -1,0 +1,37 @@
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Vite (legacy, will be removed)
+dist/
+src/
+
+# Dependencies
+node_modules/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Drizzle generated migrations are tracked, but the snapshot working dir is not
+lib/db/migrations/meta/_journal.json.bak
+
+# Build / cache
+.turbo/
+.cache/
+
+# Workspace + checkpoint runtime state (per-org, per-workspace; never commit)
+oracle-workspaces/
+oracle-checkpoints/
+

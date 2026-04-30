@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html {
+    @apply scroll-smooth;
+  }
+  body {
+    @apply min-h-screen bg-ob-bg text-ob-ink antialiased;
+    font-variant-ligatures: none;
+  }
+  ::selection {
+    background-color: #7CF0C0;
+    color: #07080B;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

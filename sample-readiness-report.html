@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sample readiness report — OracleBot (sanitized)</title>
+<meta name="description" content="Sanitized example of an OracleBot pre-launch readiness report for a trading platform on staging.">
+<meta name="theme-color" content="#07080B">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/pages.css">
+<style>
+.sample { padding: clamp(72px, 10vw, 120px) 0 80px; }
+.sample .wrap { max-width: 720px; margin: 0 auto; }
+.sample h1 { font-family: var(--display); font-size: clamp(32px, 4vw, 44px); font-weight: 400; color: var(--ink); margin-bottom: 12px; letter-spacing: -0.02em; }
+.sample .banner { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--signal); margin-bottom: 24px; text-transform: uppercase; }
+.sample .meta { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); margin-bottom: 32px; line-height: 1.6; }
+.sample h2 { font-family: var(--display); font-size: 24px; font-weight: 400; color: var(--ink); margin: 40px 0 16px; }
+.sample p, .sample li { font-size: 15px; line-height: 1.65; color: var(--ink-muted); }
+.sample ul { margin: 0 0 16px; padding-left: 1.2em; }
+.sample .callout { border: 1px solid var(--line-strong); border-radius: var(--radius-lg); padding: 20px 22px; background: var(--bg-elev); margin: 24px 0; }
+.sample .callout h3 { font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--ink); margin: 0 0 10px; }
+.sample table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 16px 0; font-family: var(--mono); }
+.sample th, .sample td { border: 1px solid var(--line); padding: 10px 12px; text-align: left; color: var(--ink-muted); }
+.sample th { background: var(--bg-soft); color: var(--ink); }
+.sample .back { margin-top: 48px; font-family: var(--mono); font-size: 12px; }
+.sample .back a { color: var(--signal); text-decoration: none; }
+</style>
+</head>
+<body>
+<header class="nav">
+  <a href="index.html" class="nav__brand" aria-label="OracleBot home">
+    <span class="mark">O</span>
+    <span><b>OracleBot</b><small>sample deliverable</small></span>
+  </a>
+  <nav class="nav__links">
+    <a href="trading.html">Trading</a>
+    <a href="index.html#commitments">Commitments</a>
+  </nav>
+  <div class="nav__cta">
+    <a href="index.html#waitlist" class="btn btn--signal">Talk to us <span class="arrow">&rarr;</span></a>
+  </div>
+  <button class="nav__burger" aria-label="Menu"><span></span><span></span><span></span></button>
+</header>
+
+<article class="sample">
+  <div class="wrap">
+    <p class="banner">Sanitized example · fictional venue · for sales enablement only</p>
+    <h1>Pre-launch readiness report</h1>
+    <p class="meta">
+      <strong>Target:</strong> staging.redacted-venue.dev (owner-verified DNS TXT)<br>
+      <strong>Run window:</strong> 2026-04-12 14:00&ndash;18:00 UTC · <strong>Personas:</strong> 3,200 trader mix<br>
+      <strong>Scenario:</strong> compressed &ldquo;market open&rdquo; · ramp 900 &rarr; 3,200 active over 12m
+    </p>
+
+    <h2>Executive summary</h2>
+    <p>The staging exchange handled steady-state order flow within SLO, but <strong>population-scale interaction</strong> between high-cancel scalpers and a burst of market orders from panic sellers produced <strong>transient order-book divergence</strong> and elevated 503s on the cancel path. A single-threaded seed script or one-at-a-time QA journey would not have exercised the contention window.</p>
+
+    <div class="callout">
+      <h3>Finding A1 — Order book divergence under burst (launch risk)</h3>
+      <p>At <span style="font-family:var(--mono)">T+41m</span>, personas <span style="font-family:var(--mono)">scalper_1204</span>&ndash;<span style="font-family:var(--mono)">scalper_1209</span> sustained ~180 cancels/sec while <span style="font-family:var(--mono)">panic_0891</span> and cohort placed market sells into a thinning bid. For <strong>14 seconds</strong>, REST depth at <span style="font-family:var(--mono)">BTC-USD</span> lagged websocket-derived depth by <strong>0.28&ndash;0.41 bps</strong> notional; one shard returned <strong>HTTP 500</strong> on <span style="font-family:var(--mono)">DELETE /api/orders/{id}</span> (12% of cancel attempts during the window).</p>
+      <p><strong>Why seed scripts miss it:</strong> scripts typically cancel one order per loop from a single session; they do not interleave burst cancels with correlated market flow from <em>other</em> personas sharing the same matching partition.</p>
+      <p><strong>Severity:</strong> Launch-blocking for a venue advertising real-time book fidelity.</p>
+    </div>
+
+    <h2>Latency snapshot (REST, staging)</h2>
+    <table>
+      <thead>
+        <tr><th>Endpoint</th><th>p50 (ms)</th><th>p95 (ms)</th><th>p99 (ms)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>POST /api/orders</td><td>38</td><td>112</td><td>204</td></tr>
+        <tr><td>DELETE /api/orders/:id</td><td>22</td><td>89</td><td>1,840</td></tr>
+        <tr><td>GET /api/depth</td><td>11</td><td>34</td><td>61</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Websocket fan-out</h2>
+    <p>Quote-tick fan-out p99 remained <strong>218 ms</strong> at 2.1k concurrent subscribers &mdash; within stated SLO. Subscriber count is included because several design partners had false confidence from single-tester websocket tests.</p>
+
+    <h2>Headline recommendations</h2>
+    <ul>
+      <li>Harden cancel path under load: fix 500s on shard <span style="font-family:var(--mono)">ord-svc-3</span>; add backpressure or idempotent cancel retries (detail in full engagement appendix).</li>
+      <li>Add cross-check between websocket book snapshots and REST depth during reconciliation; alert when divergence &gt; 0.25 bps for &gt;2s.</li>
+      <li>Re-run after patch with the same persona mix; OracleBot Standard includes a <strong>&minus;30% re-run</strong> within 30 days when shipped from the readiness engagement.</li>
+    </ul>
+
+    <p class="back"><a href="trading.html">&larr; Back to trading vertical</a> · <a href="index.html">Home</a></p>
+  </div>
+</article>
+
+<footer class="footer">
+  <div class="wrap footer__bottom" style="margin-top:0;border-top:1px solid var(--line);padding-top:24px;">
+    <span>&copy; 2026 OracleBot</span>
+    <span>Sample only · not a live customer report</span>
+    <span>oraclebot.net</span>
+  </div>
+</footer>
+<script src="js/main.js"></script>
+</body>
+</html>

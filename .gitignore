@@ -1,0 +1,30 @@
+runner/.venv/
+runner/runs/
+runner/*.egg-info/
+services/verification/.venv/
+services/verification/data/
+platform/node_modules/
+platform/dist/
+platform/public/css/
+platform/public/js/
+platform/public/trading.html
+platform/public/sample-readiness-report.html
+node_modules/
+.DS_Store
+__pycache__/
+*.pyc
+
+# Environment files (secrets)
+.env
+.env.local
+platform/.env.local
+worker/.env
+
+# Build output
+platform/.next/
+worker/dist/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp

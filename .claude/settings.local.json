@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npm run:*)",
+      "Bash(cp -r /Users/astridelysse/Desktop/oraclebot/platform/src/components /Users/astridelysse/Desktop/oraclebot/platform/components)",
+      "Bash(cp -r /Users/astridelysse/Desktop/oraclebot/platform/src/data /Users/astridelysse/Desktop/oraclebot/platform/data)",
+      "Bash(cp -r /Users/astridelysse/Desktop/oraclebot/platform/src/types /Users/astridelysse/Desktop/oraclebot/platform/types)",
+      "Bash(cp -r /Users/astridelysse/Desktop/oraclebot/platform/src/lib /Users/astridelysse/Desktop/oraclebot/platform/lib-old)",
+      "Bash(perl -i -pe \"s|from '\\\\.\\\\./\\\\.\\\\./types/api'|from '\\\\@/types/api'|g; s|from '\\\\.\\\\./\\\\.\\\\./data/modes'|from '\\\\@/data/modes'|g; s|from '\\\\.\\\\./\\\\.\\\\./data/mock'|from '\\\\@/data/mock'|g\" pricing/PricingTierCard.tsx pricing/BotVolumeSelector.tsx layout/MarketingNav.tsx)",
+      "Bash(npm install:*)",
+      "Bash(find lib/oracle-* lib/oracle-adapters lib/oracle-providers lib/workspaces.ts components/oracle-preview app/api/workspaces app/api/oracle 'app/\\(app\\)/app/workspaces' -type f)",
+      "Bash(DATABASE_URL=\"postgres://x\" CLERK_SECRET_KEY=\"sk_test_dummy\" NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=\"pk_test_dummy\" CLERK_WEBHOOK_SECRET=\"whsec_dummy\" STRIPE_SECRET_KEY=\"sk_test_dummy\" STRIPE_WEBHOOK_SECRET=\"whsec_dummy\" REDIS_URL=\"redis://localhost:6379\" RESEND_API_KEY=\"re_dummy\" NEXT_PUBLIC_APP_URL=\"http://localhost:3000\" npx next build)",
+      "Bash(DATABASE_URL=\"postgresql://user:pass@host.neon.tech/oraclebot?sslmode=require\" CLERK_SECRET_KEY=\"sk_test_dummy\" NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=\"pk_test_dummy\" CLERK_WEBHOOK_SECRET=\"whsec_dummy\" STRIPE_SECRET_KEY=\"sk_test_dummy\" STRIPE_WEBHOOK_SECRET=\"whsec_dummy\" REDIS_URL=\"redis://localhost:6379\" RESEND_API_KEY=\"re_dummy\" NEXT_PUBLIC_APP_URL=\"http://localhost:3000\" npx next build)",
+      "Bash(openssl rand:*)",
+      "Bash(yes)",
+      "Bash(npx playwright:*)",
+      "Bash(node -e \"const e2b = require\\('./node_modules/@e2b/code-interpreter/dist/index.js'\\); console.log\\(Object.keys\\(e2b\\)\\)\")",
+      "Bash(node -e ':*)",
+      "Bash(npx tsc:*)",
+      "Bash(ls -la /Users/astridelysse/Desktop/oraclebot/platform/.env* /Users/astridelysse/Desktop/oraclebot/worker/.env*)",
+      "Bash(brew --version)",
+      "Bash(curl -fsSL https://railway.com/install.sh)",
+      "Bash(sh)",
+      "Bash(npm --version)",
+      "Bash(railway --version)",
+      "Bash(railway whoami:*)",
+      "Bash(export RAILWAY_API_TOKEN=\"8ac7532b-316e-4f8f-9dd4-15cca8b32db2\")",
+      "Bash(export RAILWAY_TOKEN=\"8ac7532b-316e-4f8f-9dd4-15cca8b32db2\")",
+      "Bash(railway status:*)"
+    ]
+  }
+}

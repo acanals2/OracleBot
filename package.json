@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "name": "oraclebot-net",
+  "description": "Oracle Bot — Agent Testing Platform. platform/ (Next.js web app) + worker/ (Railway BullMQ consumer).",
+  "scripts": {
+    "dev": "npm run dev --prefix platform",
+    "dev:worker": "npm run dev --prefix worker",
+    "build": "node scripts/sync-public-assets.mjs && npm run build --prefix platform",
+    "build:worker": "npm run build --prefix worker",
+    "start": "npm run start --prefix platform",
+    "start:worker": "npm run start --prefix worker",
+    "typecheck": "npm run typecheck --prefix platform && npm run typecheck --prefix worker",
+    "db:generate": "npm run db:generate --prefix platform",
+    "db:push": "npm run db:push --prefix platform",
+    "db:studio": "npm run db:studio --prefix platform",
+    "install:all": "cd platform && npm install && cd ../worker && npm install"
+  }
+}

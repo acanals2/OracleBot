@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OracleBot — Pre-launch readiness for trading &amp; signals platforms</title>
+<meta name="description" content="Synthetic trader personas for staging exchanges. Stress-test matching, order books, and websocket fan-out before launch. Owner-verified targets only.">
+<meta name="theme-color" content="#07080B">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/pages.css">
+</head>
+<body>
+
+<header class="nav">
+  <a href="index.html" class="nav__brand" aria-label="OracleBot home">
+    <span class="mark">O</span>
+    <span><b>OracleBot</b><small>trading vertical</small></span>
+  </a>
+  <nav class="nav__links">
+    <a href="index.html#problem">Overview</a>
+    <a href="#problem">At the open</a>
+    <a href="#personas">Archetypes</a>
+    <a href="#exercise">Coverage</a>
+    <a href="#compare">Compare</a>
+    <a href="#faq">FAQ</a>
+    <a href="#commitments">Commitments</a>
+  </nav>
+  <div class="nav__cta">
+    <span class="status">Concierge engagements</span>
+    <a href="#waitlist" class="btn btn--signal">Book a run <span class="arrow">&rarr;</span></a>
+  </div>
+  <button class="nav__burger" aria-label="Menu"><span></span><span></span><span></span></button>
+</header>
+
+<main>
+
+  <section class="hero">
+    <div class="wrap hero__inner">
+      <div class="hero__copy">
+        <span class="eyebrow" data-reveal>Pre-launch readiness · For trading &amp; signals platforms</span>
+        <h1 class="hero__title" data-reveal data-reveal-delay="1">
+          Test your matching engine
+          <span class="softer">with traders,</span>
+          <em>not with curl loops.</em>
+        </h1>
+        <p class="hero__sub" data-reveal data-reveal-delay="2">
+          OracleBot populates your staging exchange with thousands of trader personas &mdash; scalpers, swing traders, market makers, panic sellers &mdash; that fund accounts, place limit and market orders, react to price moves, and message channels. Find the order-book skew, the websocket fan-out bottleneck, and the partial-fill bug <em>before</em> your first real basis point is on the line.
+        </p>
+        <div class="hero__ctas" data-reveal data-reveal-delay="3">
+          <a href="#waitlist" class="btn btn--signal">Book a pre-launch run <span class="arrow">&rarr;</span></a>
+          <a href="#personas" class="btn btn--ghost">See trader archetypes <span class="arrow">&rarr;</span></a>
+        </div>
+        <div class="hero__meta" data-reveal data-reveal-delay="4">
+          <span>Staging only &mdash; never production</span>
+          <span>Owner-verified targets</span>
+          <span>Population-scale flows</span>
+        </div>
+      </div>
+
+      <div class="hero__visual" data-reveal data-reveal-delay="2">
+        <div class="terminal" aria-hidden="true">
+          <div class="terminal__head">
+            <div class="terminal__dots"><i></i><i></i><i></i></div>
+            <span class="terminal__title">~/oraclebot &mdash; staging.exchange.dev</span>
+          </div>
+<pre class="terminal__body"><span class="prompt">$</span> <span class="ink">oraclebot run</span> <span class="flag">--target</span> staging.exchange.dev \
+    <span class="flag">--personas</span> trader-archetypes \
+    <span class="flag">--book</span> BTC-USD <span class="flag">--rate</span> 400rpm <span class="flag">--duration</span> 6h
+
+<span class="dim">[09:30:00]</span> <span class="ok">●</span> market open simulated · <span class="num">1,840</span> personas active
+<span class="dim">[09:30:04]</span> orders placed <span class="num">612</span> · cancels <span class="num">89</span> · fills <span class="num">174</span>
+<span class="dim">[09:30:11]</span> <span class="ok">●</span> book depth healthy · spread <span class="num">2.1</span>bps · p95 match <span class="num">41</span>ms
+<span class="dim">[09:31:02]</span> persona <span class="ink">mm_07</span> hit <span class="flag">/api/orders</span> 500 (under 200rps burst)
+            <span class="dim">→ flagged · order book divergence 0.3bps for 14s</span>
+<span class="dim">[09:31:48]</span> ramp <span class="num">1,840</span> → <span class="num">4,200</span> over 12m
+<span class="dim">[09:32:14]</span> websocket fan-out p99 <span class="num">218</span>ms · within SLO<span class="terminal__cursor"></span></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap hero__floor">
+      <span><a href="index.html" style="color:inherit;text-decoration:none">oraclebot.net</a></span>
+      <span>Synthetic traders for staging</span>
+      <span>2026 · Early access</span>
+    </div>
+  </section>
+
+  <section class="proof">
+    <div class="wrap proof__row">
+      <span class="proof__label">Built for teams shipping</span>
+      <div class="proof__items" aria-hidden="true">
+        <span>spot exchanges</span>
+        <span>derivatives venues</span>
+        <span>prop trading dashboards</span>
+        <span>signals services</span>
+        <span>brokerages</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="problem" id="problem">
+    <div class="wrap">
+      <div class="problem__grid">
+        <div class="problem__left" data-reveal>
+          <span class="eyebrow eyebrow--muted">What breaks at the open</span>
+          <h2 class="display display--lg">A trading platform that hasn&apos;t been <em>traded against</em> hasn&apos;t been tested.</h2>
+          <p>One QA account placing one order does not simulate launch day. OracleBot fills the gap with a population that hits the same code paths &mdash; and the same contention &mdash; your first real cohort will.</p>
+        </div>
+        <ul class="problem__list" data-reveal data-reveal-delay="2">
+          <li>
+            <span class="x">[ &times; ]</span>
+            <div>
+              <h4>Order book skew under real population</h4>
+              <p>Your matching engine works fine when one tester places one order. It doesn&apos;t work fine when 400 scalpers and 12 market makers are all working the bid at the same time. The bugs hide in the cross.</p>
+            </div>
+          </li>
+          <li>
+            <span class="x">[ &times; ]</span>
+            <div>
+              <h4>Websocket fan-out hits a wall</h4>
+              <p>Quote ticks go out fine to ten clients. At a thousand subscribed sessions, p99 latency goes from 40ms to 4 seconds and your traders see stale prices. By then it&apos;s too late to fix.</p>
+            </div>
+          </li>
+          <li>
+            <span class="x">[ &times; ]</span>
+            <div>
+              <h4>Onboarding chokes at the open</h4>
+              <p>KYC + funding + first deposit happen <em>in the same five minutes</em> on launch day. Your KYC vendor hits a rate limit nobody noticed in QA, and 30% of signups stall mid-flow.</p>
+            </div>
+          </li>
+          <li>
+            <span class="x">[ &times; ]</span>
+            <div>
+              <h4>Signals fan-out collapses recommendations</h4>
+              <p>Your signals product looks great with three test signals and four test users. With 8,000 subscribers, the publisher&apos;s notification batch backs up and signals arrive 90 seconds late &mdash; the exact window in which the price moved.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="archetypes" id="personas">
+    <div class="wrap">
+      <div class="section__head" data-reveal>
+        <span class="eyebrow">Personas</span>
+        <h2 class="display display--lg">Eight trader archetypes, <em>mixed to match your population.</em></h2>
+        <p class="lede">Rule-based behavior profiles with stochastic timing &mdash; built for population-scale stress, not vanity engagement metrics.</p>
+      </div>
+
+      <div class="archetypes__grid" data-reveal data-reveal-delay="1">
+        <article class="archetype">
+          <h4>Scalper</h4>
+          <p>High-frequency limit orders, tight stops, cancels often, sub-second decision latency. Stresses your matching engine and order cancel pipeline.</p>
+        </article>
+        <article class="archetype">
+          <h4>Swing trader</h4>
+          <p>Multi-day positions, larger size, fewer orders, watches signals/news. Stresses signals fan-out and notification latency.</p>
+        </article>
+        <article class="archetype">
+          <h4>HODLer</h4>
+          <p>Buys, walks away. Long sessions with low activity. Stresses session/auth expiry and idle reconnect.</p>
+        </article>
+        <article class="archetype">
+          <h4>Market maker</h4>
+          <p>Two-sided quotes, frequent re-pricing, large open-order count. Stresses your open-order ceiling and order-book replication.</p>
+        </article>
+        <article class="archetype">
+          <h4>Panic seller</h4>
+          <p>Triggered by drawdown, dumps positions in a burst. Stresses your circuit breakers and partial-fill logic.</p>
+        </article>
+        <article class="archetype">
+          <h4>Bot copier</h4>
+          <p>Mirrors a lead trader&apos;s actions with delay. Stresses your copy-trading pipeline and rate limits.</p>
+        </article>
+        <article class="archetype">
+          <h4>Whale</h4>
+          <p>Few orders, very large size, often iceberged. Stresses your iceberg/hidden-order logic and risk checks.</p>
+        </article>
+        <article class="archetype">
+          <h4>Newbie</h4>
+          <p>Misclicks, abandons KYC, retries deposits. Stresses your error states and recovery flows.</p>
+        </article>
+      </div>
+
+      <p class="archetypes__cta" data-reveal data-reveal-delay="2">
+        <a href="#waitlist">Compose your own mix &rarr;</a>
+      </p>
+    </div>
+  </section>
+
+  <section class="exercise" id="exercise">
+    <div class="wrap">
+      <div class="section__head" data-reveal>
+        <span class="eyebrow">Coverage</span>
+        <h2 class="display display--lg">What we <em>exercise</em> on your staging venue.</h2>
+        <p class="lede">V1 focuses on API-driven personas plus a thin browser layer where signup, KYC, and funding actually require it &mdash; not human-on-every-page for arbitrary sites.</p>
+      </div>
+
+      <div class="exercise__grid" data-reveal data-reveal-delay="1">
+        <div class="exercise__pillar">
+          <h3>Order pipeline</h3>
+          <ul>
+            <li>Limit / market / stop / iceberg orders</li>
+            <li>Order cancel &amp; modify under burst</li>
+            <li>Partial fills, IOC, FOK</li>
+            <li>Risk checks at submission</li>
+            <li>Post-trade allocation</li>
+          </ul>
+        </div>
+        <div class="exercise__pillar">
+          <h3>Market data</h3>
+          <ul>
+            <li>Websocket subscribe/unsubscribe at population scale</li>
+            <li>Quote tick fan-out p50/p95/p99</li>
+            <li>Stale-price detection</li>
+            <li>Reconnect storm after a synthetic disconnect</li>
+          </ul>
+        </div>
+        <div class="exercise__pillar">
+          <h3>Onboarding &amp; funding</h3>
+          <ul>
+            <li>KYC submission rate limits</li>
+            <li>Deposit pending &rarr; cleared transitions</li>
+            <li>First-trade unlock flow</li>
+            <li>Tier upgrades</li>
+          </ul>
+        </div>
+        <div class="exercise__pillar">
+          <h3>Signals &amp; social</h3>
+          <ul>
+            <li>Signal publish &rarr; fan-out latency</li>
+            <li>Subscriber notification delivery</li>
+            <li>Channel message moderation</li>
+            <li>Copy-trade enrollment</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="compare" id="compare">
+    <div class="wrap">
+      <div class="section__head" data-reveal>
+        <span class="eyebrow">Where we fit</span>
+        <h2 class="display display--lg">Population-scale <em>traders,</em> not scripted hits.</h2>
+        <p class="lede">Load testers hammer endpoints. QA bots verify one journey. OracleBot generates the cohort and lets it loose on verified staging.</p>
+      </div>
+
+      <div class="compare__table" data-reveal>
+        <div class="compare__row is-head">
+          <div>&nbsp;</div>
+          <div>k6 / Locust</div>
+          <div>QA Wolf / Mabl</div>
+          <div class="self">OracleBot</div>
+        </div>
+        <div class="compare__row">
+          <div class="feat">Generates a trader population, not endpoint hits</div>
+          <div class="cell no" data-col="k6 / Locust">no</div>
+          <div class="cell no" data-col="QA Wolf / Mabl">no</div>
+          <div class="cell yes" data-col="OracleBot">yes</div>
+        </div>
+        <div class="compare__row">
+          <div class="feat">Trader archetypes (scalper, MM, panic seller, etc.)</div>
+          <div class="cell no" data-col="k6 / Locust">no</div>
+          <div class="cell no" data-col="QA Wolf / Mabl">no</div>
+          <div class="cell yes" data-col="OracleBot">8 archetypes shipped</div>
+        </div>
+        <div class="compare__row">
+          <div class="feat">Exercises matching engine end-to-end</div>
+          <div class="cell no" data-col="k6 / Locust">scripted endpoints</div>
+          <div class="cell partial" data-col="QA Wolf / Mabl">one journey</div>
+          <div class="cell yes" data-col="OracleBot">at population scale</div>
+        </div>
+        <div class="compare__row">
+          <div class="feat">Surfaces order-book skew under real load</div>
+          <div class="cell no" data-col="k6 / Locust">no</div>
+          <div class="cell no" data-col="QA Wolf / Mabl">no</div>
+          <div class="cell yes" data-col="OracleBot">first-class metric</div>
+        </div>
+        <div class="compare__row">
+          <div class="feat">Owner-verified targets only</div>
+          <div class="cell no" data-col="k6 / Locust">user discretion</div>
+          <div class="cell partial" data-col="QA Wolf / Mabl">via account</div>
+          <div class="cell yes" data-col="OracleBot">DNS or OAuth, gating</div>
+        </div>
+        <div class="compare__row">
+          <div class="feat">Production-target refusal</div>
+          <div class="cell no" data-col="k6 / Locust">no</div>
+          <div class="cell no" data-col="QA Wolf / Mabl">no</div>
+          <div class="cell yes" data-col="OracleBot">enforced by the runner</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="faq" id="faq">
+    <div class="wrap">
+      <div class="section__head" data-reveal>
+        <span class="eyebrow">Trading &amp; fintech</span>
+        <h2 class="display display--lg">Questions from <em>venues &amp; platforms.</em></h2>
+      </div>
+
+      <div class="faq__list" data-reveal>
+        <div class="faq__item">
+          <button class="faq__q">
+            <span>Can OracleBot exercise my matching engine without seeing my orderbook code?</span>
+            <span class="marker">+</span>
+          </button>
+          <div class="faq__a"><div class="faq__a-inner">Yes. Personas only interact with the surfaces your real traders will &mdash; your public order API, your websocket feed, your signup flow. We don&apos;t need to see your matching engine internals; we need to place, cancel, and fill orders the way a customer would.</div></div>
+        </div>
+        <div class="faq__item">
+          <button class="faq__q">
+            <span>What about KYC vendors and external rate limits?</span>
+            <span class="marker">+</span>
+          </button>
+          <div class="faq__a"><div class="faq__a-inner">We coordinate on which dependencies to mock in staging vs. exercise live. The default is to mock external KYC/payments unless you have a sandbox tier; the runner exercises everything up to the integration boundary.</div></div>
+        </div>
+        <div class="faq__item">
+          <button class="faq__q">
+            <span>Will personas place real orders on real markets if staging connects to a live venue?</span>
+            <span class="marker">+</span>
+          </button>
+          <div class="faq__a"><div class="faq__a-inner">Only if you tell us it&apos;s safe. We default to treating any external venue connection in staging as <em>not</em> safe and refuse to exercise it until you explicitly opt in to a documented sandbox.</div></div>
+        </div>
+        <div class="faq__item">
+          <button class="faq__q">
+            <span>How do you simulate market conditions &mdash; flat tape vs. volatile open?</span>
+            <span class="marker">+</span>
+          </button>
+          <div class="faq__a"><div class="faq__a-inner">Configure a scenario at run start: flat, trending, volatile open, news shock, circuit-breaker trigger. Personas react via their archetype profile (e.g., panic sellers on drawdown, scalpers on chop).</div></div>
+        </div>
+        <div class="faq__item">
+          <button class="faq__q">
+            <span>Can you exercise our risk checks?</span>
+            <span class="marker">+</span>
+          </button>
+          <div class="faq__a"><div class="faq__a-inner">Yes. We deliberately try to violate them: newbies attempt over-leverage, whales hit size limits, panic sellers liquidate during halts. The report flags every bypass that should have blocked the persona but didn&apos;t.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="commitments" id="commitments">
+    <div class="wrap">
+      <div class="section__head" data-reveal>
+        <span class="eyebrow">Commitments</span>
+        <h2 class="display display--lg">What OracleBot will <em>never</em> do.</h2>
+        <p class="lede">Some constraints are how the product works. These are how the product <em>stays</em> the product.</p>
+      </div>
+
+      <ul class="commitments__list" data-reveal data-reveal-delay="1">
+        <li>
+          <span class="commitments__mark" aria-hidden="true">&#9670;</span>
+          <div>
+            <h4>Never run against production.</h4>
+            <p>OracleBot refuses targets that look like live production environments. Every run requires a verified staging or pre-launch target &mdash; DNS TXT or OAuth proof &mdash; and we monitor for production tells and abort if we see them.</p>
+          </div>
+        </li>
+        <li>
+          <span class="commitments__mark" aria-hidden="true">&#9670;</span>
+          <div>
+            <h4>Never run against a domain you don&apos;t own.</h4>
+            <p>Verification is gating, not a checkbox. No verified ownership, no run.</p>
+          </div>
+        </li>
+        <li>
+          <span class="commitments__mark" aria-hidden="true">&#9670;</span>
+          <div>
+            <h4>Never inflate metrics for any platform we don&apos;t operate.</h4>
+            <p>OracleBot is pre-launch readiness &mdash; not signup inflation, follower growth, or third-party vanity metrics.</p>
+          </div>
+        </li>
+        <li>
+          <span class="commitments__mark" aria-hidden="true">&#9670;</span>
+          <div>
+            <h4>Never sell or share what we observe.</h4>
+            <p>Your run data stays yours. Logs are retained for the run plus a configurable window only.</p>
+          </div>
+        </li>
+      </ul>
+
+      <p class="commitments__footnote" data-reveal data-reveal-delay="2"><em>These commitments are written into our terms and enforced in the runner. If we ever loosen them, you&apos;ll see it in a changelog before it ships.</em></p>
+    </div>
+  </section>
+
+  <section class="trading-cta">
+    <div class="wrap" data-reveal>
+      <h2>Run a <em>pre-launch readiness</em> engagement.</h2>
+      <p>A typical fintech engagement is a 4&ndash;6 hour sustained run against your staging exchange with 2,000&ndash;8,000 personas, paired with a written readiness report naming every flow we flagged. Pricing starts at $25k for a Standard engagement; multi-run packages and Launch-tier coverage are available.</p>
+      <div class="trading-cta__actions">
+        <a href="#waitlist" class="btn btn--signal">Talk to us <span class="arrow">&rarr;</span></a>
+        <a href="sample-readiness-report.html" class="btn btn--ghost">See sample readiness report <span class="arrow">&rarr;</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="waitlist" id="waitlist">
+    <div class="wrap waitlist__inner" data-reveal>
+      <span class="eyebrow">Early access</span>
+      <h2>Book a concierge run <em>for your venue.</em></h2>
+      <p>If you&apos;re pre-launch or scaling a trading product, we&apos;ll reply within a few business days with fit, tier (Pilot / Standard / Launch), and next steps.</p>
+
+      <form class="waitlist__form" data-waitlist-form>
+        <input type="email" name="email" placeholder="you@company.com" autocomplete="email" required>
+        <button type="submit">Request a call &rarr;</button>
+      </form>
+
+      <div class="waitlist__meta">
+        <span>Owner-verified staging only</span>
+        <span>No production targets</span>
+        <span>Reply within 3 business days</span>
+      </div>
+
+      <div class="waitlist__thanks">
+        <span>● Thanks &mdash; we&apos;ll be in touch.</span>
+        <span class="mono" style="color:var(--ink-dim)">Check your inbox for a confirmation.</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer__grid">
+    <div class="footer__brand">
+      <div class="mark-row">
+        <span class="nav__brand"><span class="mark">O</span></span>
+        <b>OracleBot</b>
+      </div>
+      <p>Trading &amp; fintech pre-launch readiness. Synthetic trader populations on verified staging only.</p>
+    </div>
+    <div>
+      <h5>Product</h5>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="index.html#how">How it works</a></li>
+        <li><a href="sample-readiness-report.html">Sample report</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>Verticals</h5>
+      <ul>
+        <li><a href="trading.html">Trading &amp; signals</a></li>
+        <li><a href="index.html#uses">All use cases</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>Company</h5>
+      <ul>
+        <li><a href="#waitlist">Contact</a></li>
+        <li>Privacy</li>
+        <li>Terms</li>
+        <li>hello@oraclebot.net</li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap footer__bottom">
+    <span>&copy; 2026 OracleBot</span>
+    <span>Staging only · Owner-verified · Synthetic</span>
+    <span>oraclebot.net</span>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>
