@@ -1,24 +1,29 @@
 import { eq } from 'drizzle-orm';
+import { AlertCircle, Check } from 'lucide-react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { TopBar } from '@/components/layout/TopBar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Check } from 'lucide-react';
 import { requireSession } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { subscriptions, usageCredits } from '@/lib/db/schema';
-import { PRODUCTS, formatPrice } from '@/lib/billing';
+import { PRODUCTS, FREE_RUNS_PER_MONTH, formatPrice } from '@/lib/billing';
+import { getEntitlements } from '@/lib/entitlements';
 import { CheckoutButton } from './CheckoutButton';
 
 export default async function BillingPage() {
   const session = await requireSession();
-  const [activeSubs, credits] = await Promise.all([
+  const [activeSubs, credits, entitlements] = await Promise.all([
     db.select().from(subscriptions).where(eq(subscriptions.orgId, session.org.id)),
     db.select().from(usageCredits).where(eq(usageCredits.orgId, session.org.id)),
+    getEntitlements(session.org.id),
   ]);
 
   const activeSub = activeSubs.find((s) => s.status === 'active' || s.status === 'trialing');
+  const pastDueSub = activeSubs.find(
+    (s) => s.status === 'past_due' || s.status === 'unpaid',
+  );
   const totalCredits = credits.reduce((sum, c) => sum + c.creditsRemaining, 0);
 
   return (
@@ -30,6 +35,24 @@ export default async function BillingPage() {
           subtitle={`${session.org.name} · transparent pricing, hard caps available per run`}
         />
         <div className="flex-1 space-y-8 p-8">
+          {pastDueSub && (
+            <div className="flex items-center gap-3 rounded-lg border border-ob-danger/40 bg-ob-danger/10 p-4">
+              <AlertCircle className="h-5 w-5 shrink-0 text-ob-danger" />
+              <div className="flex-1">
+                <p className="font-medium text-ob-danger">Subscription payment failed</p>
+                <p className="mt-1 text-sm text-ob-muted">
+                  Your {PRODUCTS.find((p) => p.key === pastDueSub.productKey)?.name ?? pastDueSub.productKey} subscription
+                  is past due. Runs are blocked until you update your payment method.
+                </p>
+              </div>
+              <form action="/api/billing/portal" method="POST">
+                <Button type="submit" variant="secondary" size="sm">
+                  Update payment
+                </Button>
+              </form>
+            </div>
+          )}
+
           <Card>
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
               <div>
@@ -37,21 +60,33 @@ export default async function BillingPage() {
                 <p className="mt-1 text-sm text-ob-muted">
                   {activeSub
                     ? `${PRODUCTS.find((p) => p.key === activeSub.productKey)?.name ?? activeSub.productKey} — renews ${activeSub.currentPeriodEnd.toISOString().slice(0, 10)}`
-                    : 'No active subscription. Pay per run, or subscribe below.'}
+                    : totalCredits > 0
+                      ? `Pay-per-run with ${totalCredits} credit${totalCredits === 1 ? '' : 's'} remaining.`
+                      : entitlements.freeRunsRemaining > 0
+                        ? `Free tier · ${entitlements.freeRunsRemaining} of ${FREE_RUNS_PER_MONTH} runs remaining this month.`
+                        : 'Free tier exhausted this month. Buy credits or subscribe to keep running.'}
                 </p>
               </div>
               {activeSub && <Badge variant="signal">{activeSub.status}</Badge>}
             </CardHeader>
-            <CardContent className="flex flex-wrap gap-3">
+            <CardContent className="flex flex-wrap items-center gap-4">
               {activeSub ? (
                 <form action="/api/billing/portal" method="POST">
                   <Button type="submit" variant="secondary">Manage subscription</Button>
                 </form>
               ) : null}
-              <p className="text-xs text-ob-muted">
-                Per-run credits remaining:{' '}
-                <span className="font-mono text-ob-ink">{totalCredits}</span>
-              </p>
+              <div className="flex flex-wrap gap-4 text-xs text-ob-muted">
+                <span>
+                  Free runs remaining:{' '}
+                  <span className="font-mono text-ob-ink">
+                    {entitlements.freeRunsRemaining}/{FREE_RUNS_PER_MONTH}
+                  </span>
+                </span>
+                <span>
+                  Per-run credits:{' '}
+                  <span className="font-mono text-ob-ink">{totalCredits}</span>
+                </span>
+              </div>
             </CardContent>
           </Card>
 

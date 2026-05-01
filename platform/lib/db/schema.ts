@@ -402,6 +402,10 @@ export const runs = pgTable(
       [k: string]: unknown;
     }>(),
 
+    /** Tier the user picked (free, scout, builder, studio, stack). Used for
+     *  entitlement checks + free-tier monthly counter. */
+    productKey: text('product_key'),
+
     costCentsEstimated: integer('cost_cents_estimated'),
     costCentsActual: integer('cost_cents_actual'),
     hardCapCents: integer('hard_cap_cents'),
@@ -416,6 +420,12 @@ export const runs = pgTable(
     statusIdx: index('runs_status_idx').on(t.status),
     createdAtIdx: index('runs_created_at_idx').on(t.createdAt),
     idempotencyIdx: uniqueIndex('runs_idempotency_idx').on(t.orgId, t.idempotencyKey),
+    /** Lookup index for the free-tier monthly counter. */
+    orgProductCreatedIdx: index('runs_org_product_created_idx').on(
+      t.orgId,
+      t.productKey,
+      t.createdAt,
+    ),
   }),
 );
 
@@ -552,6 +562,32 @@ export const targetVerifications = pgTable(
   (t) => ({
     orgDomainIdx: uniqueIndex('target_verifications_org_domain_idx').on(t.orgId, t.domain),
     statusIdx: index('target_verifications_status_idx').on(t.status),
+  }),
+);
+
+// ────────────────────────────────────────────────────────────────────────────
+// Stripe webhook idempotency
+//
+// Every Stripe webhook event has a unique `event.id` (e.g. evt_1Abc…). We
+// insert into this table on receipt; the unique PRIMARY KEY constraint
+// prevents duplicate processing if Stripe replays the event (which it does
+// on any non-2xx response, plus any client can replay via `stripe events
+// resend evt_…`). Handlers stamp `processedAt` when they finish; if they
+// throw, `error` records the reason so the row can be cleared and retried.
+// ────────────────────────────────────────────────────────────────────────────
+
+export const webhookEvents = pgTable(
+  'webhook_events',
+  {
+    /** Stripe event.id (e.g. evt_1Abc...). PRIMARY KEY = idempotency lock. */
+    id: text('id').primaryKey(),
+    type: text('type').notNull(),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+    error: text('error'),
+  },
+  (t) => ({
+    typeIdx: index('webhook_events_type_idx').on(t.type, t.receivedAt),
   }),
 );
 
@@ -716,3 +752,5 @@ export type DeadJob = typeof deadJobs.$inferSelect;
 export type NewDeadJob = typeof deadJobs.$inferInsert;
 export type TargetVerification = typeof targetVerifications.$inferSelect;
 export type NewTargetVerification = typeof targetVerifications.$inferInsert;
+export type WebhookEvent = typeof webhookEvents.$inferSelect;
+export type NewWebhookEvent = typeof webhookEvents.$inferInsert;

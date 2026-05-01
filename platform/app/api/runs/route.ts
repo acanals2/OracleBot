@@ -19,6 +19,7 @@ import {
 import { estimateRunCostCents } from '@/lib/billing';
 import { enqueueExecuteRun } from '@/lib/queue';
 import { assertDomainVerified } from '@/lib/target-verification';
+import { assertCanCreateRun } from '@/lib/entitlements';
 import { logger, newTraceId } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
@@ -41,6 +42,15 @@ export async function POST(req: NextRequest) {
       botCount: input.botCount,
       durationMinutes: input.durationMinutes,
     });
+
+    // Entitlement gate — refuses if no active sub, no credits, and no
+    // free-tier runs left. Throws ForbiddenError carrying a human-readable
+    // blockedReason that the wizard surfaces inline.
+    await assertCanCreateRun(
+      session.org.id,
+      { productKey: input.productKey, costCentsEstimated },
+      traceId,
+    );
 
     const run = await createRun({
       orgId: session.org.id,

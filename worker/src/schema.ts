@@ -269,6 +269,10 @@ export const runs = pgTable(
       [k: string]: unknown;
     }>(),
 
+    // Tier the user picked. Worker reads this to attribute credit consumption
+    // on completion (Phase 4).
+    productKey: text('product_key'),
+
     // Cost tracking
     costCentsEstimated: integer('cost_cents_estimated'),
     costCentsActual: integer('cost_cents_actual'),

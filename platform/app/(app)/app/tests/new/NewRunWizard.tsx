@@ -85,8 +85,33 @@ export function NewRunWizard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
-  const [productKey, setProductKey] = useState<'scout' | 'builder' | 'studio' | 'stack'>('builder');
+  const [productKey, setProductKey] = useState<'free' | 'scout' | 'builder' | 'studio' | 'stack'>('free');
   const [hardCapDollars, setHardCapDollars] = useState<number>(50);
+  const [entitlements, setEntitlements] = useState<{
+    plan: string;
+    creditsByProduct: Record<string, number>;
+    freeRunsRemaining: number;
+    subscription: { productKey: string; status: string } | null;
+  } | null>(null);
+
+  // Pull entitlements once when the wizard mounts so we can dim unavailable
+  // tiers in the picker. Best-effort: if the fetch fails the picker still
+  // renders normally and gating happens server-side.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/entitlements', { headers: { accept: 'application/json' } })
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return;
+        if (json?.ok && json.data?.entitlements) setEntitlements(json.data.entitlements);
+      })
+      .catch(() => {
+        /* non-fatal */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const product = PRODUCTS.find((p) => p.key === productKey)!;
   const botCount = product.maxBots;
@@ -343,28 +368,43 @@ export function NewRunWizard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-              {PRODUCTS.filter((p) => p.publicListed && p.type !== 'metered').map((p) => (
-                <button
-                  key={p.key}
-                  type="button"
-                  onClick={() =>
-                    setProductKey(p.key as 'scout' | 'builder' | 'studio' | 'stack')
-                  }
-                  className={`rounded-xl border p-4 text-left ${
-                    productKey === p.key
-                      ? 'border-ob-signal/50 bg-ob-signal/[0.04]'
-                      : 'border-ob-line bg-ob-surface/40 hover:border-ob-signal/30'
-                  }`}
-                >
-                  <p className="font-display text-base text-ob-ink">{p.name}</p>
-                  <p className="mt-1 font-mono text-lg text-ob-signal">{formatPrice(p.priceCents)}</p>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ob-dim">
-                    {p.cadence}
-                  </p>
-                  <p className="mt-2 text-xs text-ob-muted">{p.summary}</p>
-                </button>
-              ))}
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+              {PRODUCTS.filter((p) => p.publicListed && p.type !== 'metered').map((p) => {
+                const status = entitlementStatusFor(p.key, entitlements);
+                const usable =
+                  status === 'active-sub' ||
+                  status === 'has-credits' ||
+                  status === 'free-available';
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() =>
+                      setProductKey(
+                        p.key as 'free' | 'scout' | 'builder' | 'studio' | 'stack',
+                      )
+                    }
+                    aria-pressed={productKey === p.key}
+                    className={`rounded-xl border p-4 text-left transition-colors ${
+                      productKey === p.key
+                        ? 'border-ob-signal/60 bg-ob-signal/[0.06] ring-1 ring-ob-signal/40'
+                        : usable
+                          ? 'border-ob-line bg-ob-surface/40 hover:border-ob-signal/30'
+                          : 'border-ob-line bg-ob-surface/20 opacity-60 hover:opacity-90'
+                    }`}
+                  >
+                    <p className="font-display text-base text-ob-ink">{p.name}</p>
+                    <p className="mt-1 font-mono text-lg text-ob-signal">
+                      {p.priceCents === 0 ? 'Free' : formatPrice(p.priceCents)}
+                    </p>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ob-dim">
+                      {p.cadence}
+                    </p>
+                    <p className="mt-2 text-xs text-ob-muted">{p.summary}</p>
+                    <TierStatusPill status={status} />
+                  </button>
+                );
+              })}
             </div>
 
             <div className="rounded-xl border border-ob-line bg-ob-bg/40 p-4">
@@ -473,5 +513,66 @@ function Field({
       <p className="text-[10px] font-mono uppercase tracking-wider text-ob-dim">{label}</p>
       <p className={`mt-1 text-sm text-ob-ink ${mono ? 'font-mono' : ''}`}>{value || '—'}</p>
     </div>
+  );
+}
+
+type TierStatus =
+  | 'active-sub'
+  | 'has-credits'
+  | 'free-available'
+  | 'free-exhausted'
+  | 'needs-purchase'
+  | 'unknown';
+
+function entitlementStatusFor(
+  productKey: string,
+  ent: {
+    creditsByProduct: Record<string, number>;
+    freeRunsRemaining: number;
+    subscription: { productKey: string; status: string } | null;
+  } | null,
+): TierStatus {
+  if (!ent) return 'unknown';
+  if (ent.subscription && ent.subscription.productKey === productKey) {
+    return 'active-sub';
+  }
+  if ((ent.creditsByProduct[productKey] ?? 0) > 0) return 'has-credits';
+  if (productKey === 'free') {
+    return ent.freeRunsRemaining > 0 ? 'free-available' : 'free-exhausted';
+  }
+  return 'needs-purchase';
+}
+
+function TierStatusPill({ status }: { status: TierStatus }) {
+  const map: Partial<Record<TierStatus, { label: string; cls: string }>> = {
+    'active-sub': {
+      label: 'Active',
+      cls: 'border-ob-signal/40 bg-ob-signal/10 text-ob-signal',
+    },
+    'has-credits': {
+      label: 'Credit available',
+      cls: 'border-ob-signal/30 bg-ob-signal/5 text-ob-signal',
+    },
+    'free-available': {
+      label: 'Available',
+      cls: 'border-ob-signal/30 bg-ob-signal/5 text-ob-signal',
+    },
+    'free-exhausted': {
+      label: 'Used this month',
+      cls: 'border-ob-warn/40 bg-ob-warn/10 text-ob-warn',
+    },
+    'needs-purchase': {
+      label: 'Buy to unlock',
+      cls: 'border-ob-line bg-ob-bg/40 text-ob-muted',
+    },
+  };
+  const entry = map[status];
+  if (!entry) return null;
+  return (
+    <span
+      className={`mt-3 inline-block rounded-md border px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest ${entry.cls}`}
+    >
+      {entry.label}
+    </span>
   );
 }

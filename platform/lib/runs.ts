@@ -34,7 +34,7 @@ export const createRunInputSchema = z
   .object({
     mode: z.enum(['site', 'agent', 'api', 'stack']),
     name: z.string().trim().min(1).max(120),
-    productKey: z.enum(['scout', 'builder', 'studio', 'stack']),
+    productKey: z.enum(['free', 'scout', 'builder', 'studio', 'stack']),
     botCount: z.number().int().min(1).max(30_000),
     durationMinutes: z.number().int().min(1).max(180),
     target: z.discriminatedUnion('kind', [
@@ -150,6 +150,7 @@ export async function createRun(opts: {
     personaMix: opts.input.personaMix,
     scenarioIds: opts.input.scenarioIds,
     hardCapCents: opts.input.hardCapCents,
+    productKey: opts.input.productKey,
     costCentsEstimated: opts.costCentsEstimated,
     idempotencyKey: opts.input.idempotencyKey,
     status: 'queued',

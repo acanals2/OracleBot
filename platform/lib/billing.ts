@@ -11,7 +11,14 @@
  * without branching.
  */
 
-export type ProductType = 'credit' | 'subscription' | 'metered';
+export type ProductType = 'free' | 'credit' | 'subscription' | 'metered';
+
+/**
+ * Number of free-tier runs an org gets per calendar month before they need
+ * to buy credits or subscribe. Tracked by counting rows in `runs` with
+ * `productKey === 'free'` and `created_at >= date_trunc('month', now())`.
+ */
+export const FREE_RUNS_PER_MONTH = 3;
 
 export interface Product {
   key: string;
@@ -36,6 +43,19 @@ export interface Product {
 }
 
 export const PRODUCTS: Product[] = [
+  {
+    key: 'free',
+    name: 'Free',
+    type: 'free',
+    priceCents: 0,
+    cadence: 'engagement',
+    maxBots: 100,
+    durationMinutes: 5,
+    summary: `${FREE_RUNS_PER_MONTH} runs/month · 100 bots · 5 min`,
+    stripePriceEnvVar: null,
+    publicListed: true,
+    sortOrder: 0,
+  },
   {
     key: 'scout',
     name: 'Scout',

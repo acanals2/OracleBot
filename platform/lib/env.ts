@@ -38,6 +38,17 @@ const Schema = z.object({
   RESEND_FROM_EMAIL: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  /** Public publishable key — exposed to the browser via NEXT_PUBLIC_. */
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  /** Stripe price IDs are produced by `npx tsx scripts/stripe/sync.ts`. All
+   *  optional so dev mode without billing wired still boots; getStripePriceId()
+   *  returns null when missing and run creation falls back to free / credits
+   *  paths instead. */
+  STRIPE_PRICE_SCOUT_RUN: z.string().optional(),
+  STRIPE_PRICE_BUILDER_RUN: z.string().optional(),
+  STRIPE_PRICE_STUDIO_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_STACK_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_OVERAGE_PERSONA_MIN: z.string().optional(),
   E2B_API_KEY: z.string().optional(),
   INTERNAL_API_SECRET: z.string().optional(),
 

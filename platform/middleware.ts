@@ -17,6 +17,7 @@ const PROTECTED_PREFIXES = [
   '/api/workspaces',
   '/api/oracle',
   '/api/verify-target',
+  '/api/entitlements',
 ];
 
 const PREVIEW_PROXY_PREFIX = '/preview/';
