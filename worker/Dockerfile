@@ -47,13 +47,14 @@ RUN groupadd -r app \
 USER app
 
 ENV NODE_ENV=production
+# Local-only fallback. Railway/Vercel/Fly all inject their own PORT which the
+# worker prefers; this default only matters if you run the image bare.
 ENV PORT_HEALTH=8080
 EXPOSE 8080
 
-# Container-level healthcheck. Railway also probes /readyz separately via its
-# own healthcheck config — having one at the Docker layer is belt-and-braces.
+# Container-level healthcheck. Honours $PORT (Railway), falls back to 8080.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD curl -fsS http://localhost:8080/readyz || exit 1
+  CMD curl -fsS "http://localhost:${PORT:-8080}/readyz" || exit 1
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "dist/index.js"]

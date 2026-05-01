@@ -41,7 +41,11 @@ const Schema = z.object({
   WORKER_RUN_CONCURRENCY: z.coerce.number().int().positive().default(4),
   WORKER_EMAIL_CONCURRENCY: z.coerce.number().int().positive().default(16),
 
-  // Health server (Railway healthcheck targets /readyz on this port)
+  // Health server. Railway sets its own PORT and probes /readyz on it; we
+  // honour PORT first, then PORT_HEALTH, then default. This way the same
+  // image works on Railway (where PORT is injected) and locally (where it
+  // isn't and PORT_HEALTH=8080 takes over).
+  PORT: z.coerce.number().int().positive().optional(),
   PORT_HEALTH: z.coerce.number().int().positive().default(8080),
 
   // Graceful shutdown — max time to wait for in-flight jobs (ms)

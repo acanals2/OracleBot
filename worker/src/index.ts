@@ -30,8 +30,11 @@ import { db, deadJobs } from './db.js';
 
 logger.info({ event: 'worker.starting' }, 'worker starting');
 
-// ── Health probe HTTP server (Railway healthcheck targets /readyz) ──────────
-const healthServer = startHealthServer({ port: env.PORT_HEALTH });
+// ── Health probe HTTP server ────────────────────────────────────────────────
+// Railway injects PORT and probes /readyz on it. Locally PORT is unset and
+// we fall back to PORT_HEALTH (default 8080).
+const healthPort = env.PORT ?? env.PORT_HEALTH;
+const healthServer = startHealthServer({ port: healthPort });
 
 // ── BullMQ workers ──────────────────────────────────────────────────────────
 const runWorker = new Worker(
@@ -179,7 +182,7 @@ logger.info(
     runConcurrency: env.WORKER_RUN_CONCURRENCY,
     emailConcurrency: env.WORKER_EMAIL_CONCURRENCY,
     billingConcurrency: 2,
-    healthPort: env.PORT_HEALTH,
+    healthPort,
   },
   'worker up',
 );
