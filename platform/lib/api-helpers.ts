@@ -32,6 +32,15 @@ interface ApiErrorOpts {
 }
 
 export function apiError(err: unknown, opts: ApiErrorOpts = {}) {
+  // Next's redirect() and notFound() throw special errors with a `digest`
+  // field. They MUST propagate out of route handlers so Next can perform the
+  // navigation. If apiError swallows them we end up with a 500 carrying
+  // 'NEXT_REDIRECT' as the message and the page blanks.
+  const digest = (err as { digest?: unknown })?.digest;
+  if (typeof digest === 'string' && /^NEXT_(REDIRECT|NOT_FOUND)/.test(digest)) {
+    throw err;
+  }
+
   const traceId = opts.traceId ?? newTraceId();
   const log = logger.child({ traceId, ...(opts.context ?? {}) });
 
