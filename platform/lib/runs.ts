@@ -283,3 +283,32 @@ export async function getRunByShareToken(token: string) {
   const run = await db.query.runs.findFirst({ where: eq(runs.id, link.runId) });
   return run ?? null;
 }
+
+/**
+ * Spectator-mode hydration: full run details (events + findings + metrics)
+ * resolved by share token instead of org ownership. Returns null if the
+ * token is invalid, revoked, or expired.
+ *
+ * Used by /share/[token]/{live,results}/page.tsx for the public read-only
+ * view.
+ */
+export async function getRunWithDetailsByShareToken(token: string) {
+  const run = await getRunByShareToken(token);
+  if (!run) return null;
+  const [findings, recentEvents, metrics] = await Promise.all([
+    db.query.runFindings.findMany({
+      where: eq(runFindings.runId, run.id),
+      orderBy: (f, { asc }) => [asc(f.severity), asc(f.createdAt)],
+    }),
+    db.query.runEvents.findMany({
+      where: eq(runEvents.runId, run.id),
+      orderBy: (e, { desc }) => [desc(e.createdAt)],
+      limit: 100,
+    }),
+    db.query.runMetrics.findMany({
+      where: eq(runMetrics.runId, run.id),
+      orderBy: (m, { asc }) => [asc(m.tSeconds)],
+    }),
+  ]);
+  return { run, findings, events: recentEvents, metrics };
+}

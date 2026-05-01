@@ -36,7 +36,7 @@ interface Props {
 }
 
 export function ActionCluster({ readOnly = false }: Props) {
-  const { run, status } = useLiveRun();
+  const { run, status, shareToken } = useLiveRun();
   const isLive = !TERMINAL.has(status);
   const isCompleted = status === 'completed';
   const toast = useToast();
@@ -44,8 +44,8 @@ export function ActionCluster({ readOnly = false }: Props) {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
 
   if (readOnly) {
-    return isCompleted ? (
-      <Link href={`/share/results/${run.id}`} aria-label="Open report">
+    return isCompleted && shareToken ? (
+      <Link href={`/share/${shareToken}/results`} aria-label="Open report">
         <Button size="sm" variant="secondary">
           <FileText className="mr-2 h-4 w-4" />
           Open report

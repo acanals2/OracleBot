@@ -44,6 +44,10 @@ export interface LiveRunState {
   isLive: boolean;
   /** 'connecting' | 'open' | 'closed' | 'error' — diagnostic for indicator UI. */
   connection: ConnectionState;
+  /** True when this provider was instantiated for a public spectator view. */
+  readOnly: boolean;
+  /** Share token if one was used to authenticate this stream (spectator mode). */
+  shareToken: string | null;
 }
 
 type ConnectionState = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
@@ -66,10 +70,21 @@ interface ProviderProps {
     events: RunEvent[];
     findings: RunFinding[];
   };
+  /** When true the dashboard hides write controls (cancel, share, kebab). */
+  readOnly?: boolean;
+  /** Share token used to authenticate the stream — required when readOnly. */
+  shareToken?: string | null;
   children: ReactNode;
 }
 
-export function LiveRunProvider({ runId, initial, children }: ProviderProps) {
+export function LiveRunProvider({
+  runId,
+  initial,
+  readOnly = false,
+  shareToken,
+  children,
+}: ProviderProps) {
+  const tokenOrNull = shareToken ?? null;
   const [run, setRun] = useState<Run>(initial.run);
   const [metrics, setMetrics] = useState<RunMetric[]>(initial.metrics);
   const [events, setEvents] = useState<RunEvent[]>(initial.events);
@@ -95,12 +110,16 @@ export function LiveRunProvider({ runId, initial, children }: ProviderProps) {
     const connect = () => {
       if (cancelled) return;
       setConnection('connecting');
-      const url = new URL(`/api/runs/${runId}/stream`, window.location.origin);
+      const streamPath = tokenOrNull
+        ? `/api/share/${tokenOrNull}/stream`
+        : `/api/runs/${runId}/stream`;
+      const url = new URL(streamPath, window.location.origin);
       url.searchParams.set('metricSince', String(lastMetricIdRef.current));
       url.searchParams.set('eventSince', String(lastEventIdRef.current));
       url.searchParams.set('findingSince', lastFindingTimeRef.current);
 
-      es = new EventSource(url.toString(), { withCredentials: true });
+      // Spectator (token) streams don't need credentials; the token is the auth.
+      es = new EventSource(url.toString(), { withCredentials: !tokenOrNull });
 
       es.addEventListener('open', () => {
         if (!cancelled) setConnection('open');
@@ -182,8 +201,10 @@ export function LiveRunProvider({ runId, initial, children }: ProviderProps) {
       status,
       isLive: !TERMINAL.has(status),
       connection,
+      readOnly,
+      shareToken: tokenOrNull,
     }),
-    [run, metrics, events, findings, status, connection],
+    [run, metrics, events, findings, status, connection, readOnly, tokenOrNull],
   );
 
   return <LiveRunContext.Provider value={value}>{children}</LiveRunContext.Provider>;
