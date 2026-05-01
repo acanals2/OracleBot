@@ -12,6 +12,14 @@
  * URL to the clipboard, and fires a toast. The kebab menu groups secondary
  * actions: copy run ID, copy spectator URL (if a token already exists),
  * open raw run JSON, re-run with same config.
+ *
+ * Clipboard reliability: navigator.clipboard.writeText requires "transient
+ * activation" from a user gesture. Because Share-live awaits a fetch before
+ * trying to copy, the activation has lapsed and the modern API rejects.
+ * tryCopy() falls back to the legacy textarea + execCommand path which
+ * runs synchronously inside any handler. As a final safety net, when both
+ * clipboard paths fail we render the URL in a copyable input below the
+ * actions so the user can grab it manually.
  */
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
@@ -23,6 +31,7 @@ import {
   RefreshCw,
   Share2,
   Square,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
@@ -42,6 +51,8 @@ export function ActionCluster({ readOnly = false }: Props) {
   const toast = useToast();
   const [sharing, setSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  // Set when clipboard write fails so we can render a manual-copy input.
+  const [manualCopyUrl, setManualCopyUrl] = useState<string | null>(null);
 
   if (readOnly) {
     return isCompleted && shareToken ? (
@@ -54,16 +65,24 @@ export function ActionCluster({ readOnly = false }: Props) {
     ) : null;
   }
 
-  const handleCopy = (text: string, label: string) => {
-    navigator.clipboard
-      .writeText(text)
-      .then(() => toast.show(`${label} copied`))
-      .catch(() => toast.show(`Failed to copy ${label}`, { kind: 'error' }));
+  const handleCopy = async (text: string, label: string) => {
+    const ok = await tryCopy(text);
+    if (ok) {
+      toast.show(`${label} copied`);
+    } else {
+      // Fall back to surfacing the value so the user can copy it manually.
+      setManualCopyUrl(text);
+      toast.show(`Couldn't auto-copy ${label} — select it manually below`, {
+        kind: 'info',
+        timeoutMs: 4000,
+      });
+    }
   };
 
   const handleShareLive = async () => {
     if (sharing) return;
     setSharing(true);
+    setManualCopyUrl(null);
     try {
       const res = await fetch(`/api/runs/${run.id}/share`, {
         method: 'POST',
@@ -77,7 +96,7 @@ export function ActionCluster({ readOnly = false }: Props) {
       if (!token) throw new Error('No share token returned');
       const url = `${window.location.origin}/share/${token}`;
       setShareUrl(url);
-      handleCopy(url, 'Share URL');
+      await handleCopy(url, 'Share URL');
     } catch (e) {
       toast.show(e instanceof Error ? e.message : 'Share failed', { kind: 'error' });
     } finally {
@@ -86,30 +105,121 @@ export function ActionCluster({ readOnly = false }: Props) {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {isLive && (
-        <form action={`/api/runs/${run.id}/cancel`} method="POST">
-          <Button type="submit" variant="secondary" size="sm">
-            <Square className="mr-2 h-3.5 w-3.5" />
-            Cancel run
+    <div className="flex flex-col items-end gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {isLive && (
+          <form action={`/api/runs/${run.id}/cancel`} method="POST">
+            <Button type="submit" variant="secondary" size="sm">
+              <Square className="mr-2 h-3.5 w-3.5" />
+              Cancel run
+            </Button>
+          </form>
+        )}
+        {isLive && (
+          <Button onClick={handleShareLive} disabled={sharing} variant="secondary" size="sm">
+            <Share2 className="mr-2 h-3.5 w-3.5" />
+            {sharing ? 'Sharing…' : 'Share live'}
           </Button>
-        </form>
+        )}
+        {isCompleted && (
+          <Link href={`/app/tests/${run.id}/results`}>
+            <Button size="sm">
+              <FileText className="mr-2 h-3.5 w-3.5" />
+              Open report
+            </Button>
+          </Link>
+        )}
+        <KebabMenu run={run} shareUrl={shareUrl} onCopy={handleCopy} />
+      </div>
+      {manualCopyUrl && (
+        <ManualCopyInput
+          url={manualCopyUrl}
+          onDismiss={() => setManualCopyUrl(null)}
+          onCopy={handleCopy}
+        />
       )}
-      {isLive && (
-        <Button onClick={handleShareLive} disabled={sharing} variant="secondary" size="sm">
-          <Share2 className="mr-2 h-3.5 w-3.5" />
-          {sharing ? 'Sharing…' : 'Share live'}
-        </Button>
-      )}
-      {isCompleted && (
-        <Link href={`/app/tests/${run.id}/results`}>
-          <Button size="sm">
-            <FileText className="mr-2 h-3.5 w-3.5" />
-            Open report
-          </Button>
-        </Link>
-      )}
-      <KebabMenu run={run} shareUrl={shareUrl} onCopy={handleCopy} />
+    </div>
+  );
+}
+
+/**
+ * Try to copy `text` to the clipboard. Tries modern API first; falls back
+ * to the legacy textarea + execCommand path which works without transient
+ * activation. Returns true on success, false if both paths fail.
+ */
+async function tryCopy(text: string): Promise<boolean> {
+  // Modern API. Available on https + localhost.
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      /* fall through */
+    }
+  }
+  // Legacy fallback. Synchronous, no permission prompt, works in iframes
+  // and after async awaits.
+  if (typeof document === 'undefined') return false;
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+function ManualCopyInput({
+  url,
+  onDismiss,
+  onCopy,
+}: {
+  url: string;
+  onDismiss: () => void;
+  onCopy: (text: string, label: string) => Promise<void> | void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-select the URL on mount so a single Cmd/Ctrl-C copies it.
+  useEffect(() => {
+    inputRef.current?.select();
+  }, []);
+
+  return (
+    <div className="flex w-full max-w-md items-center gap-1.5 rounded-md border border-ob-line bg-ob-bg/40 p-1.5">
+      <input
+        ref={inputRef}
+        type="text"
+        readOnly
+        value={url}
+        onFocus={(e) => e.currentTarget.select()}
+        className="min-w-0 flex-1 truncate bg-transparent px-1.5 py-1 font-mono text-xs text-ob-ink focus:outline-none"
+      />
+      <button
+        type="button"
+        onClick={() => onCopy(url, 'Share URL')}
+        className="inline-flex items-center gap-1 rounded border border-ob-line px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-ob-muted transition-colors hover:text-ob-signal"
+        aria-label="Copy URL"
+      >
+        <Copy className="h-3 w-3" />
+        copy
+      </button>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="rounded p-1 text-ob-dim transition-colors hover:text-ob-ink"
+        aria-label="Dismiss"
+      >
+        <X className="h-3 w-3" />
+      </button>
     </div>
   );
 }
@@ -121,7 +231,7 @@ function KebabMenu({
 }: {
   run: { id: string; mode: string };
   shareUrl: string | null;
-  onCopy: (text: string, label: string) => void;
+  onCopy: (text: string, label: string) => Promise<void> | void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -164,7 +274,7 @@ function KebabMenu({
             icon={Copy}
             label="Copy run ID"
             onSelect={() => {
-              onCopy(run.id, 'Run ID');
+              void onCopy(run.id, 'Run ID');
               setOpen(false);
             }}
           />
@@ -173,7 +283,7 @@ function KebabMenu({
               icon={Copy}
               label="Copy spectator URL"
               onSelect={() => {
-                onCopy(shareUrl, 'Spectator URL');
+                void onCopy(shareUrl, 'Spectator URL');
                 setOpen(false);
               }}
             />

@@ -65,8 +65,14 @@ export function MetricCard({
         )}
       </div>
       <div className="mt-2 flex items-end justify-between gap-3">
-        <p className="font-mono text-2xl font-semibold tabular-nums text-ob-ink">{value}</p>
-        {sparkline && <div className="shrink-0 text-ob-signal/80">{sparkline}</div>}
+        <p className="min-w-0 truncate font-mono text-2xl font-semibold tabular-nums text-ob-ink">
+          {value}
+        </p>
+        {sparkline && (
+          <div className="shrink-0 text-ob-signal" aria-hidden>
+            {sparkline}
+          </div>
+        )}
       </div>
       {hint && <p className="mt-1 text-xs text-ob-muted">{hint}</p>}
       {delta && (
