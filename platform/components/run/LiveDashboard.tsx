@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useLiveRun } from './LiveRunProvider';
 import { MetricsTimeline } from './MetricsTimeline';
+import { RunErrorBoundary } from './RunErrorBoundary';
 
 export function LiveDashboard() {
   const { run, metrics, events, status, isLive, connection } = useLiveRun();
@@ -85,7 +86,9 @@ export function LiveDashboard() {
         />
       </div>
 
-      <MetricsTimeline />
+      <RunErrorBoundary section="metrics-timeline">
+        <MetricsTimeline />
+      </RunErrorBoundary>
 
       <Card>
         <CardHeader>
@@ -93,7 +96,7 @@ export function LiveDashboard() {
         </CardHeader>
         <CardContent>
           {events.length === 0 ? (
-            <p className="text-sm text-ob-muted">Waiting for events…</p>
+            <p className="text-sm text-ob-muted">{emptyEventCopy(status)}</p>
           ) : (
             <ul className="space-y-2 font-mono text-xs text-ob-muted">
               {events.slice(0, 50).map((e) => (
@@ -111,6 +114,25 @@ export function LiveDashboard() {
       </Card>
     </>
   );
+}
+
+function emptyEventCopy(status: string): string {
+  switch (status) {
+    case 'queued':
+      return 'Run is queued. Waiting for the worker to pick it up.';
+    case 'provisioning':
+      return 'Provisioning sandbox. Bot execution starts as soon as this completes.';
+    case 'running':
+      return 'Bots running. Waiting for the first lifecycle or finding event…';
+    case 'completed':
+      return 'No events recorded for this run.';
+    case 'failed':
+      return 'Run failed before any events were recorded. Check the run details for the error reason.';
+    case 'canceled':
+      return 'Run was canceled before any events were recorded.';
+    default:
+      return 'Waiting for events…';
+  }
 }
 
 function ConnectionIndicator({ state }: { state: 'idle' | 'connecting' | 'open' | 'closed' | 'error' }) {
