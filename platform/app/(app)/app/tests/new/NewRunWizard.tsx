@@ -8,7 +8,7 @@
  * job, and redirects to the live monitor. The worker will pick up the job
  * once the bot engine + sandbox provisioner are wired.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -62,13 +62,29 @@ export function NewRunWizard() {
 
   const [mode, setMode] = useState<Mode>('site');
   const [name, setName] = useState('');
+  // Initial kind matches the default mode's first allowed kind so the wizard
+  // shows the URL input on first paint instead of the GitHub-repo input.
+  // If the user clicks Continue without re-selecting the mode, we still want
+  // the no-E2B path. The mode-change effect below also keeps these in sync.
   const [target, setTarget] = useState<{
     kind: TargetKind;
     repoUrl?: string;
     image?: string;
     url?: string;
     endpoint?: string;
-  }>({ kind: 'repo', repoUrl: '' });
+  }>({ kind: TARGETS_BY_MODE.site[0], url: '' });
+
+  // If the user changes mode and the current target.kind isn't allowed for
+  // the new mode, snap it to the first allowed kind for that mode. Prevents
+  // submitting a (mode=stack, kind=liveUrl) combo or — more importantly —
+  // a (mode=site, kind=repo) combo when the user just typed a URL.
+  useEffect(() => {
+    const allowed = TARGETS_BY_MODE[mode];
+    if (!allowed.includes(target.kind)) {
+      setTarget({ kind: allowed[0], repoUrl: '', image: '', url: '', endpoint: '' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
   const [productKey, setProductKey] = useState<'scout' | 'builder' | 'studio' | 'stack'>('builder');
   const [hardCapDollars, setHardCapDollars] = useState<number>(50);
 
