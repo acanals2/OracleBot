@@ -1,11 +1,13 @@
 import { cn } from '@/lib/utils';
-import { TrendingDown, TrendingUp } from 'lucide-react';
+import { Info, TrendingDown, TrendingUp } from 'lucide-react';
+import { Tooltip } from '@/components/ui/Tooltip';
 
 export function MetricCard({
   label,
   value,
   hint,
   delta,
+  info,
   positiveIsGood = true,
   className,
 }: {
@@ -13,6 +15,9 @@ export function MetricCard({
   value: string;
   hint?: string;
   delta?: string;
+  /** When set, renders a small info icon next to the label with a tooltip
+   *  explaining what this metric means. Plain text only — keep it short. */
+  info?: string;
   positiveIsGood?: boolean;
   className?: string;
 }) {
@@ -30,7 +35,20 @@ export function MetricCard({
         className
       )}
     >
-      <p className="font-mono text-[10px] font-medium uppercase tracking-widest text-ob-dim">{label}</p>
+      <div className="flex items-center gap-1.5">
+        <p className="font-mono text-[10px] font-medium uppercase tracking-widest text-ob-dim">{label}</p>
+        {info && (
+          <Tooltip content={info} side="top">
+            <button
+              type="button"
+              aria-label={`About ${label}`}
+              className="text-ob-dim/70 transition-colors hover:text-ob-signal focus:text-ob-signal focus:outline-none"
+            >
+              <Info className="h-3 w-3" />
+            </button>
+          </Tooltip>
+        )}
+      </div>
       <p className="mt-2 font-mono text-2xl font-semibold tabular-nums text-ob-ink">{value}</p>
       {hint && <p className="mt-1 text-xs text-ob-muted">{hint}</p>}
       {delta && (

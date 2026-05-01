@@ -2,10 +2,18 @@
 
 /**
  * Client-side render of the live-run dashboard. Reads from LiveRunProvider's
- * context so cards and the event stream update in real time as SSE messages
- * arrive. Visual layout matches the previous server-rendered version one-to-one
- * to make this swap a pure data-flow change; richer visualization (chart,
- * tooltips, layout overhaul) lands in A.3.
+ * context so cards, the chart, and the event stream update in real time as
+ * SSE messages arrive.
+ *
+ *   ┌────────────────────────────────────────────┐
+ *   │ Status banner (badge, connection, cancel)  │
+ *   ├────────────────────────────────────────────┤
+ *   │ Metric cards (active bots, RPS, errs, p95) │
+ *   ├────────────────────────────────────────────┤
+ *   │ MetricsTimeline (p95 area + RPS line)      │
+ *   ├────────────────────────────────────────────┤
+ *   │ Event stream                                │
+ *   └────────────────────────────────────────────┘
  */
 import Link from 'next/link';
 import { Pause, SkipForward, Wifi, WifiOff } from 'lucide-react';
@@ -14,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useLiveRun } from './LiveRunProvider';
+import { MetricsTimeline } from './MetricsTimeline';
 
 export function LiveDashboard() {
   const { run, metrics, events, status, isLive, connection } = useLiveRun();
@@ -57,20 +66,26 @@ export function LiveDashboard() {
         <MetricCard
           label="Active bots"
           value={`${(latest?.activeBots ?? 0).toLocaleString()} / ${run.botCount.toLocaleString()}`}
+          info="Synthetic users currently exercising your target. The denominator is the bot count you configured for this run."
         />
         <MetricCard
           label="Current RPS"
           value={latest?.rps != null ? latest.rps.toFixed(0) : '—'}
+          info="Requests per second across all bots in the most recent 10-second window. Reflects real Playwright network traffic."
         />
         <MetricCard
           label="Error rate"
           value={latest?.errorRate != null ? `${(latest.errorRate * 100).toFixed(2)}%` : '—'}
+          info="Share of HTTP responses with status ≥ 400 in the most recent window. 5xx responses are weighted by the bot engine when computing the readiness score."
         />
         <MetricCard
           label="p95 latency"
           value={latest?.p95Ms != null ? `${latest.p95Ms.toFixed(0)} ms` : '—'}
+          info="95th-percentile response time over the recent window. Latencies above 3000ms surface as latency_cascade findings."
         />
       </div>
+
+      <MetricsTimeline />
 
       <Card>
         <CardHeader>
