@@ -35,12 +35,23 @@ const MODE_CARDS: { id: Mode; icon: typeof Globe; title: string; body: string }[
   { id: 'stack', icon: Layers, title: 'Stack', body: 'Full product end-to-end (signature mode).' },
 ];
 
+// Order matters: the first kind in each list is the auto-selected default
+// when the user enters Step 2. liveUrl/agent are listed first because they
+// don't require an E2B sandbox (which is gated behind E2B_API_KEY and not
+// yet wired in production) — so the default path is the one that works
+// without any extra setup.
 const TARGETS_BY_MODE: Record<Mode, TargetKind[]> = {
-  site: ['repo', 'docker', 'liveUrl'],
+  site: ['liveUrl', 'repo', 'docker'],
   agent: ['agent', 'repo'],
-  api: ['repo', 'docker', 'liveUrl'],
+  api: ['liveUrl', 'repo', 'docker'],
   stack: ['repo', 'docker'],
 };
+
+// Target kinds that require an E2B microVM sandbox. These are surfaced with
+// a "needs E2B" warning so users don't pick them blindly only to fail at
+// provisioning. Phase 12 of the partner handoff wires E2B — until then,
+// these are best-effort and will fail with a clear message at run time.
+const E2B_REQUIRED: ReadonlySet<TargetKind> = new Set(['repo', 'docker']);
 
 export function NewRunWizard() {
   const router = useRouter();
@@ -194,24 +205,46 @@ export function NewRunWizard() {
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {TARGETS_BY_MODE[mode].map((kind) => (
-                <button
-                  key={kind}
-                  type="button"
-                  onClick={() => setTarget({ ...target, kind })}
-                  className={`rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider ${
-                    target.kind === kind
-                      ? 'border-ob-signal/50 bg-ob-signal/10 text-ob-signal'
-                      : 'border-ob-line bg-ob-surface/50 text-ob-muted hover:text-ob-ink'
-                  }`}
-                >
-                  {kind === 'repo' && 'GitHub repo'}
-                  {kind === 'docker' && 'Docker image'}
-                  {kind === 'liveUrl' && 'Live URL (verified)'}
-                  {kind === 'agent' && 'Agent endpoint'}
-                </button>
-              ))}
+            <div>
+              <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-ob-dim">
+                Target type
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {TARGETS_BY_MODE[mode].map((kind) => {
+                  const isActive = target.kind === kind;
+                  const needsE2B = E2B_REQUIRED.has(kind);
+                  return (
+                    <button
+                      key={kind}
+                      type="button"
+                      onClick={() => setTarget({ ...target, kind })}
+                      aria-pressed={isActive}
+                      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider transition-colors ${
+                        isActive
+                          ? 'border-ob-signal/60 bg-ob-signal/15 text-ob-signal ring-1 ring-ob-signal/40'
+                          : 'border-ob-line bg-ob-surface/50 text-ob-muted hover:text-ob-ink'
+                      }`}
+                    >
+                      {kind === 'repo' && 'GitHub repo'}
+                      {kind === 'docker' && 'Docker image'}
+                      {kind === 'liveUrl' && 'Live URL (verified)'}
+                      {kind === 'agent' && 'Agent endpoint'}
+                      {needsE2B && (
+                        <span className="rounded bg-ob-warn/15 px-1 py-0.5 text-[9px] text-ob-warn">
+                          needs E2B
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {E2B_REQUIRED.has(target.kind) && (
+                <p className="mt-2 text-xs text-ob-warn">
+                  This target type provisions an E2B microVM sandbox, which requires
+                  E2B_API_KEY to be set on the worker. If you haven&apos;t configured E2B,
+                  pick <strong>Live URL</strong> and point at a deployed staging URL instead.
+                </p>
+              )}
             </div>
 
             {target.kind === 'repo' && (
