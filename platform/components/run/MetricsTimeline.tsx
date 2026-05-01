@@ -1,13 +1,15 @@
 'use client';
 
 /**
- * Live time-series chart for a run's metrics. Renders p95 latency as an
- * area chart and RPS as a stroked line on a shared time axis.
+ * Live time-series chart for a run's metrics. Renders a selectable
+ * percentile (p50 / p95 / p99) latency layer as an area chart, with RPS
+ * overlaid as a stroked line on a shared time axis.
  *
- * Reads from useLiveRun() so it updates incrementally as SSE messages
- * deliver new RunMetric rows. The backing data is the same `metrics` array
- * the metric cards consume — no separate fetch.
+ * Reads from useLiveRun() so points appear incrementally as SSE delivers
+ * them. The percentile selector lets the user switch which latency layer
+ * is the area without re-fetching.
  */
+import { useState } from 'react';
 import {
   Area,
   CartesianGrid,
@@ -20,6 +22,14 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { useLiveRun } from './LiveRunProvider';
+
+type Percentile = 'p50' | 'p95' | 'p99';
+
+const PERCENTILE_LABEL: Record<Percentile, string> = {
+  p50: 'p50',
+  p95: 'p95',
+  p99: 'p99',
+};
 
 const tickStyle = { fill: '#5F6573', fontSize: 10 };
 
@@ -35,24 +45,21 @@ const tooltipStyles = {
 };
 
 interface ChartPoint {
-  t: number; // tSeconds
-  label: string; // formatted axis label
-  p95: number | null;
+  t: number;
+  label: string;
+  ms: number | null;
   rps: number | null;
-  errorRate: number | null;
-  activeBots: number | null;
 }
 
 export function MetricsTimeline() {
   const { metrics, run, isLive } = useLiveRun();
+  const [percentile, setPercentile] = useState<Percentile>('p95');
 
   const data: ChartPoint[] = metrics.map((m) => ({
     t: m.tSeconds,
     label: formatT(m.tSeconds),
-    p95: m.p95Ms,
+    ms: percentile === 'p50' ? m.p50Ms : percentile === 'p95' ? m.p95Ms : m.p99Ms,
     rps: m.rps,
-    errorRate: m.errorRate,
-    activeBots: m.activeBots,
   }));
 
   const subtitle = isLive
@@ -62,13 +69,13 @@ export function MetricsTimeline() {
   return (
     <Card className="overflow-hidden">
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>Latency &amp; throughput</span>
-          <span className="font-mono text-[10px] uppercase tracking-widest text-ob-dim">
-            p95 area · RPS line
-          </span>
-        </CardTitle>
-        <p className="text-xs text-ob-muted">{subtitle}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle>Latency &amp; throughput</CardTitle>
+          <PercentileToggle value={percentile} onChange={setPercentile} />
+        </div>
+        <p className="text-xs text-ob-muted">
+          {subtitle} · {PERCENTILE_LABEL[percentile]} area · RPS line
+        </p>
       </CardHeader>
       <CardContent className="h-72 pt-0">
         {data.length === 0 ? (
@@ -107,7 +114,7 @@ export function MetricsTimeline() {
               <Tooltip
                 {...tooltipStyles}
                 formatter={(value, name) => {
-                  if (name === 'p95') return [`${(value as number).toFixed(0)} ms`, 'p95'];
+                  if (name === 'ms') return [`${(value as number).toFixed(0)} ms`, PERCENTILE_LABEL[percentile]];
                   if (name === 'rps') return [`${(value as number).toFixed(1)}`, 'RPS'];
                   return [value, name];
                 }}
@@ -116,8 +123,8 @@ export function MetricsTimeline() {
               <Area
                 yAxisId="ms"
                 type="monotone"
-                dataKey="p95"
-                name="p95"
+                dataKey="ms"
+                name="ms"
                 stroke="#7CF0C0"
                 strokeWidth={1.5}
                 fill="url(#msGrad)"
@@ -140,6 +147,43 @@ export function MetricsTimeline() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function PercentileToggle({
+  value,
+  onChange,
+}: {
+  value: Percentile;
+  onChange: (p: Percentile) => void;
+}) {
+  const options: Percentile[] = ['p50', 'p95', 'p99'];
+  return (
+    <div
+      role="tablist"
+      aria-label="Latency percentile"
+      className="inline-flex overflow-hidden rounded-md border border-ob-line bg-ob-bg/40 font-mono text-[10px] uppercase tracking-widest"
+    >
+      {options.map((opt) => {
+        const active = value === opt;
+        return (
+          <button
+            key={opt}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(opt)}
+            className={`px-2.5 py-1 transition-colors ${
+              active
+                ? 'bg-ob-signal/15 text-ob-signal'
+                : 'text-ob-muted hover:text-ob-ink'
+            }`}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
