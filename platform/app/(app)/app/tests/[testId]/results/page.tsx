@@ -3,21 +3,14 @@ import { notFound } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { TopBar } from '@/components/layout/TopBar';
 import { MetricCard } from '@/components/dashboard/MetricCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Download, Share2 } from 'lucide-react';
 import { requireSession } from '@/lib/auth';
 import { getRunWithDetails } from '@/lib/runs';
+import { RunSummaryCard } from '@/components/run/RunSummaryCard';
+import { FindingsList } from '@/components/run/FindingsList';
 
 type Params = Promise<{ testId: string }>;
-
-const SEVERITY_STYLES: Record<string, string> = {
-  critical: 'border-ob-danger/40 bg-ob-danger/10 text-ob-danger',
-  high: 'border-ob-warn/40 bg-ob-warn/10 text-ob-warn',
-  medium: 'border-ob-line bg-ob-surface text-ob-ink',
-  low: 'border-ob-line bg-ob-surface/60 text-ob-muted',
-  info: 'border-ob-line/40 bg-ob-bg/40 text-ob-dim',
-};
 
 export default async function TestResultsPage({ params }: { params: Params }) {
   const { testId } = await params;
@@ -54,8 +47,16 @@ export default async function TestResultsPage({ params }: { params: Params }) {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <MetricCard label="Readiness" value={run.readinessScore != null ? `${run.readinessScore}/100` : '—'} />
-            <MetricCard label="Findings" value={findings.length.toString()} />
+            <MetricCard
+              label="Readiness"
+              value={run.readinessScore != null ? `${run.readinessScore}/100` : '—'}
+              info="0–100 score derived from finding severities. Critical = −25, High = −12, Medium = −6, Low = −2, Info = −0.5. A run with zero findings scores 100."
+            />
+            <MetricCard
+              label="Findings"
+              value={findings.length.toString()}
+              info="Total issues surfaced during the run. Use the severity chips below to filter the list."
+            />
             <MetricCard
               label="Cost"
               value={
@@ -65,6 +66,7 @@ export default async function TestResultsPage({ params }: { params: Params }) {
                     ? `~$${(run.costCentsEstimated / 100).toFixed(2)}`
                     : '—'
               }
+              info="Actual sandbox + AI inference cost for this run. While running, this shows the estimate; the final amount appears on completion."
             />
             <MetricCard
               label="Duration"
@@ -73,69 +75,13 @@ export default async function TestResultsPage({ params }: { params: Params }) {
                   ? `${Math.round((+new Date(run.completedAt) - +new Date(run.startedAt)) / 60000)} min`
                   : '—'
               }
+              info="Wall-clock time from bot execution start to run completion (excludes provisioning)."
             />
           </div>
 
-          {run.summaryJson && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <pre className="overflow-x-auto rounded-lg bg-ob-bg/40 p-4 font-mono text-[11px] text-ob-muted">
-                  {JSON.stringify(run.summaryJson, null, 2)}
-                </pre>
-              </CardContent>
-            </Card>
-          )}
+          <RunSummaryCard run={run} findings={findings} />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Findings ({findings.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {findings.length === 0 ? (
-                <p className="text-sm text-ob-muted">
-                  No findings — that&apos;s good news. Re-run with adversarial intent if you want to dig deeper.
-                </p>
-              ) : (
-                <ul className="space-y-3">
-                  {findings.map((f) => (
-                    <li
-                      key={f.id}
-                      className={`rounded-xl border p-4 ${SEVERITY_STYLES[f.severity] ?? ''}`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="font-mono text-[11px] uppercase tracking-[0.16em]">
-                          {f.severity} · {f.category}
-                        </p>
-                      </div>
-                      <p className="mt-2 font-display text-base text-ob-ink">{f.title}</p>
-                      <p className="mt-1 text-sm text-ob-muted">{f.description}</p>
-                      {f.remediation && (
-                        <p className="mt-3 rounded-lg border border-ob-line bg-ob-bg/40 p-3 text-xs text-ob-muted">
-                          <span className="font-mono uppercase tracking-wider text-ob-signal">
-                            Remediation:
-                          </span>{' '}
-                          {f.remediation}
-                        </p>
-                      )}
-                      {f.fixPullRequestUrl && (
-                        <a
-                          href={f.fixPullRequestUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-3 inline-block font-mono text-xs text-ob-signal hover:underline"
-                        >
-                          View AI-generated fix PR →
-                        </a>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+          <FindingsList findings={findings} />
         </div>
       </div>
     </div>
