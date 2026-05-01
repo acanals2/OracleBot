@@ -16,7 +16,6 @@ import {
   getVerificationStatus,
   isCarveOut,
   listVerificationsForOrg,
-  normalizeDomain,
   wellKnownUrl,
 } from '@/lib/target-verification';
 import { logger, newTraceId } from '@/lib/logger';
@@ -120,5 +119,3 @@ function buildInstructions(
   };
 }
 
-// Normalize is exported on lib but expose a tiny utility check too.
-export const _normalize = normalizeDomain;
