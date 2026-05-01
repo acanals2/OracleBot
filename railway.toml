@@ -20,3 +20,8 @@ restartPolicyMaxRetries = 10
 # Send SIGTERM and wait this long before SIGKILL. Worker drains in-flight
 # jobs up to SHUTDOWN_DRAIN_MS (25s default) so 30s gives a 5s buffer.
 gracePeriodSeconds = 30
+
+[deploy.variables]
+# Railway's healthcheck probes $PORT. The worker's health server listens on
+# PORT_HEALTH (8080), not $PORT. Set PORT=8080 so Railway probes the right port.
+PORT = "8080"
