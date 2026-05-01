@@ -9,36 +9,99 @@
  *   } catch (e) {
  *     return apiError(e);
  *   }
+ *
+ * Every error response includes a `traceId` so user reports can be correlated
+ * with structured server logs. The traceId is generated automatically if the
+ * caller doesn't supply one.
  */
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { NoActiveOrgError, NotInOrgError, UnauthenticatedError } from './auth';
+import { isAppError } from './errors';
+import { logger, newTraceId } from './logger';
 
 export function ok<T>(data: T, init?: ResponseInit) {
   return NextResponse.json({ ok: true, data }, init);
 }
 
-export function apiError(err: unknown) {
+interface ApiErrorOpts {
+  /** Caller-supplied traceId for log correlation. If omitted, one is generated. */
+  traceId?: string;
+  /** Extra structured fields to log alongside the error. */
+  context?: Record<string, unknown>;
+}
+
+export function apiError(err: unknown, opts: ApiErrorOpts = {}) {
+  const traceId = opts.traceId ?? newTraceId();
+  const log = logger.child({ traceId, ...(opts.context ?? {}) });
+
+  // ── ZodError ────────────────────────────────────────────────────────────
   if (err instanceof ZodError) {
+    log.warn({ event: 'api.validation_error', issues: err.issues }, 'invalid input');
     return NextResponse.json(
-      { ok: false, error: 'invalid_input', details: err.flatten() },
+      { ok: false, error: 'invalid_input', details: err.flatten(), traceId },
       { status: 400 },
     );
   }
+
+  // ── AppError taxonomy from lib/errors.ts ────────────────────────────────
+  if (isAppError(err)) {
+    const level = err.statusCode >= 500 ? 'error' : 'warn';
+    log[level](
+      {
+        event: 'api.app_error',
+        code: err.code,
+        statusCode: err.statusCode,
+        context: err.context,
+      },
+      err.message,
+    );
+    return NextResponse.json(
+      { ok: false, error: err.code, message: err.message, traceId },
+      { status: err.statusCode },
+    );
+  }
+
+  // ── Auth-side errors thrown by lib/auth.ts ──────────────────────────────
+  // These predate the AppError taxonomy; keep mapping them explicitly so we
+  // don't have to refactor lib/auth.ts in this pass.
   if (err instanceof UnauthenticatedError) {
-    return NextResponse.json({ ok: false, error: 'unauthenticated' }, { status: 401 });
+    log.warn({ event: 'api.unauthenticated' }, 'unauthenticated');
+    return NextResponse.json(
+      { ok: false, error: 'unauthenticated', traceId },
+      { status: 401 },
+    );
   }
   if (err instanceof NoActiveOrgError) {
-    return NextResponse.json({ ok: false, error: 'no_active_org' }, { status: 403 });
+    log.warn({ event: 'api.no_active_org' }, 'no active org');
+    return NextResponse.json(
+      { ok: false, error: 'no_active_org', traceId },
+      { status: 403 },
+    );
   }
   if (err instanceof NotInOrgError) {
-    return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 });
+    log.warn({ event: 'api.not_in_org' }, 'not in org');
+    return NextResponse.json(
+      { ok: false, error: 'forbidden', traceId },
+      { status: 403 },
+    );
   }
-  // eslint-disable-next-line no-console
-  console.error('[api]', err);
-  const message = err instanceof Error ? err.message : 'Internal error';
+
+  // ── Unknown / catch-all ────────────────────────────────────────────────
+  // This is the path that previously surfaced as an opaque 500. We now log
+  // the full Error (name, message, stack) under the traceId so the user can
+  // ship the traceId from their browser console and we can find the cause.
+  const e = err as Error | undefined;
+  log.error(
+    {
+      event: 'api.internal_error',
+      err: e ? { name: e.name, message: e.message, stack: e.stack } : err,
+    },
+    'unhandled error in API route',
+  );
+  const message = e instanceof Error ? e.message : 'Internal error';
   return NextResponse.json(
-    { ok: false, error: 'internal', message },
+    { ok: false, error: 'internal', message, traceId },
     { status: 500 },
   );
 }

@@ -41,7 +41,9 @@
       "Bash(mkdir -p ~/.ssh)",
       "Bash(chmod 700 ~/.ssh)",
       "Bash(ssh-keyscan -t ed25519 github.com)",
-      "Bash(git remote:*)"
+      "Bash(git remote:*)",
+      "Bash(head -30 /Users/astridelysse/Desktop/oraclebot/platform/lib/db/migrations/0000_*.sql)",
+      "Bash(curl -sS -w \"\\\\nHTTP %{http_code}\\\\n\" https://oracle-bot-seven.vercel.app/api/workspaces)"
     ]
   }
 }
