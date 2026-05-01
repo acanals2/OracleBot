@@ -107,19 +107,21 @@ export function KpiStrip() {
         sparkline={spark(p95Series)}
       />
       <MetricCard
-        label={isCompleted ? 'Cost' : 'Cost (live)'}
+        label={isCompleted ? 'Cost (projected)' : 'Cost (projected)'}
         value={`$${(liveCostCents / 100).toFixed(2)}`}
         info={
           run.hardCapCents
-            ? `Live projection from elapsed × estimated rate. Hard cap: $${(run.hardCapCents / 100).toFixed(2)}; we'll auto-pause near the cap. Final value lands in this card on completion.`
-            : 'Live projection from elapsed × estimated rate. Final value lands here on completion.'
+            ? `PROJECTION ONLY — billing isn't active yet (Phase 4). This number forecasts what the run would cost on the chosen tier (elapsed × estimated rate). Hard cap: $${(run.hardCapCents / 100).toFixed(2)}; once billing is live we'll auto-pause near the cap.`
+            : "PROJECTION ONLY — billing isn't active yet (Phase 4). This number forecasts what the run would cost on the chosen tier."
         }
         hint={
-          run.hardCapCents
-            ? `${(burnPct * 100).toFixed(0)}% of cap`
-            : run.costCentsEstimated
-              ? `est. $${(run.costCentsEstimated / 100).toFixed(2)} total`
-              : undefined
+          isCompleted
+            ? 'projection — billing not active'
+            : run.hardCapCents
+              ? `${(burnPct * 100).toFixed(0)}% of cap (projected)`
+              : run.costCentsEstimated
+                ? `est. $${(run.costCentsEstimated / 100).toFixed(2)} total`
+                : 'projection — billing not active'
         }
         sparkline={spark(costSeries)}
         tone={costTone}

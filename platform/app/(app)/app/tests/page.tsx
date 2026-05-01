@@ -62,32 +62,65 @@ export default async function AllRunsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-ob-line">
-                    {runs.map((r) => (
-                      <tr key={r.id} className="text-ob-muted hover:bg-ob-surface/40">
-                        <td className="px-6 py-4 font-medium text-ob-ink">{r.name}</td>
-                        <td className="px-6 py-4 font-mono text-xs uppercase">{r.mode}</td>
-                        <td className="px-6 py-4 font-mono">{r.botCount.toLocaleString()}</td>
-                        <td className="px-6 py-4 font-mono">
-                          {r.readinessScore != null ? `${r.readinessScore}` : '—'}
-                        </td>
-                        <td className="px-6 py-4">
-                          <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          {r.status === 'running' || r.status === 'provisioning' ? (
-                            <Link href={`/app/tests/${r.id}/live`}>
-                              <Button variant="secondary" size="sm">Monitor</Button>
+                    {runs.map((r) => {
+                      // Every status routes somewhere meaningful: live mid-run,
+                      // results once terminal. Failed / canceled / timed_out
+                      // still go to /results so the user can see why.
+                      const live =
+                        r.status === 'running' ||
+                        r.status === 'provisioning' ||
+                        r.status === 'queued';
+                      const href = live
+                        ? `/app/tests/${r.id}/live`
+                        : `/app/tests/${r.id}/results`;
+                      const actionLabel = live ? 'Monitor' : 'Report';
+                      return (
+                        <tr
+                          key={r.id}
+                          className="cursor-pointer text-ob-muted transition-colors hover:bg-ob-surface/40"
+                        >
+                          <td className="px-6 py-4 font-medium text-ob-ink">
+                            <Link
+                              href={href}
+                              className="block focus:outline-none focus:ring-1 focus:ring-ob-signal/40"
+                            >
+                              {r.name}
                             </Link>
-                          ) : r.status === 'completed' ? (
-                            <Link href={`/app/tests/${r.id}/results`}>
-                              <Button variant="ghost" size="sm">
-                                Report <ArrowRight className="ml-1 h-4 w-4" />
+                          </td>
+                          <td className="px-6 py-4 font-mono text-xs uppercase">
+                            <Link href={href} className="block">
+                              {r.mode}
+                            </Link>
+                          </td>
+                          <td className="px-6 py-4 font-mono">
+                            <Link href={href} className="block">
+                              {r.botCount.toLocaleString()}
+                            </Link>
+                          </td>
+                          <td className="px-6 py-4 font-mono">
+                            <Link href={href} className="block">
+                              {r.readinessScore != null ? `${r.readinessScore}` : '—'}
+                            </Link>
+                          </td>
+                          <td className="px-6 py-4">
+                            <Link href={href} className="block">
+                              <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
+                            </Link>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <Link href={href}>
+                              <Button
+                                variant={live ? 'secondary' : 'ghost'}
+                                size="sm"
+                              >
+                                {actionLabel}
+                                <ArrowRight className="ml-1 h-4 w-4" />
                               </Button>
                             </Link>
-                          ) : null}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
