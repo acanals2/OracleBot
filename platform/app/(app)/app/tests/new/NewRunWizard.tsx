@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/Card';
 import { AlertOctagon, ChevronRight, Globe, Layers, MessageSquare, Terminal } from 'lucide-react';
 import { PRODUCTS, formatPrice, estimateRunCostCents } from '@/lib/billing';
+import { VerificationStatusInline } from '@/components/run-wizard/VerificationStatusInline';
 
 type Mode = 'site' | 'agent' | 'api' | 'stack';
 type TargetKind = 'repo' | 'docker' | 'liveUrl' | 'agent';
@@ -278,6 +279,7 @@ export function NewRunWizard() {
                   value={target.url ?? ''}
                   onChange={(e) => setTarget({ ...target, url: e.target.value })}
                 />
+                <VerificationStatusInline url={target.url ?? ''} />
               </div>
             )}
             {target.kind === 'agent' && (
@@ -289,6 +291,7 @@ export function NewRunWizard() {
                   value={target.endpoint ?? ''}
                   onChange={(e) => setTarget({ ...target, endpoint: e.target.value })}
                 />
+                <VerificationStatusInline url={target.endpoint ?? ''} />
               </div>
             )}
 

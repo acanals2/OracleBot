@@ -1,6 +1,12 @@
 /**
  * POST /api/runs   — create a new run + enqueue execution
  * GET  /api/runs   — list runs for the current org
+ *
+ * Run-creation is gated on domain verification (Phase 3): for `liveUrl` and
+ * `agent` targets we resolve the host and assert the requesting org has a
+ * verified entry in `target_verifications` (or the host is on the carve-out
+ * list). `repo` and `docker` targets skip this check — those run inside a
+ * sandbox we provision, so domain ownership doesn't apply.
  */
 import { NextRequest } from 'next/server';
 import { requireSession } from '@/lib/auth';
@@ -12,12 +18,23 @@ import {
 } from '@/lib/runs';
 import { estimateRunCostCents } from '@/lib/billing';
 import { enqueueExecuteRun } from '@/lib/queue';
+import { assertDomainVerified } from '@/lib/target-verification';
+import { logger, newTraceId } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
+  const traceId = newTraceId();
+  const log = logger.child({ traceId, route: '/api/runs' });
   try {
     const session = await requireSession();
     const body = await req.json();
     const input = createRunInputSchema.parse(body);
+
+    // Domain verification gate — applies to liveUrl + agent targets.
+    if (input.target.kind === 'liveUrl') {
+      await assertDomainVerified(session.org.id, input.target.url);
+    } else if (input.target.kind === 'agent') {
+      await assertDomainVerified(session.org.id, input.target.endpoint);
+    }
 
     const costCentsEstimated = estimateRunCostCents({
       productKey: input.productKey,
@@ -37,22 +54,25 @@ export async function POST(req: NextRequest) {
     try {
       await enqueueExecuteRun({ runId: run.id, orgId: session.org.id });
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn('[api/runs] enqueue failed, run remains queued:', err);
+      log.warn(
+        { event: 'run.enqueue_failed', runId: run.id, err: (err as Error).message },
+        'enqueue failed; run remains queued',
+      );
     }
 
     return ok({ runId: run.id, status: run.status });
   } catch (e) {
-    return apiError(e);
+    return apiError(e, { traceId });
   }
 }
 
 export async function GET() {
+  const traceId = newTraceId();
   try {
     const session = await requireSession();
     const runs = await listRunsForOrg(session.org.id, 100);
     return ok({ runs });
   } catch (e) {
-    return apiError(e);
+    return apiError(e, { traceId });
   }
 }

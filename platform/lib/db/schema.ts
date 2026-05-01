@@ -100,6 +100,18 @@ export const findingSeverityEnum = pgEnum('finding_severity', [
   'info',
 ]);
 
+export const verificationMethodEnum = pgEnum('verification_method', [
+  'dns_txt',
+  'well_known_file',
+]);
+
+export const verificationStatusEnum = pgEnum('verification_status', [
+  'pending',
+  'verified',
+  'failed',
+  'expired',
+]);
+
 export const findingCategoryEnum = pgEnum('finding_category', [
   'race_condition',
   'load_ceiling',
@@ -501,6 +513,49 @@ export const shareLinks = pgTable(
 );
 
 // ────────────────────────────────────────────────────────────────────────────
+// Target / domain verification
+//
+// Before a run can target an external domain, the requesting org must prove
+// it owns that domain. Two verification methods are supported:
+//   - dns_txt: org adds `oracle-bot-verify=<token>` as a TXT record at the
+//     apex (or a subdomain prefix) and we resolve it.
+//   - well_known_file: org serves a plain-text file at
+//     `https://<domain>/.well-known/oraclebot.txt` whose body is `<token>`.
+//
+// One row per (org, domain). Verification persists for 90 days; after that
+// the org must re-verify. A handful of domains are carved out at the
+// application layer (see lib/target-verification.ts) and skip this table.
+// ────────────────────────────────────────────────────────────────────────────
+
+export const targetVerifications = pgTable(
+  'target_verifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    /** Hostname only — lowercased, no scheme/path/port. */
+    domain: text('domain').notNull(),
+    /** Random opaque token the org must surface via DNS or HTTP. */
+    challengeToken: text('challenge_token').notNull(),
+    method: verificationMethodEnum('method').notNull(),
+    status: verificationStatusEnum('status').notNull().default('pending'),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    /** When the verification expires and the org must re-verify. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    /** Last attempt timestamp + error reason if any. */
+    lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
+    lastError: text('last_error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgDomainIdx: uniqueIndex('target_verifications_org_domain_idx').on(t.orgId, t.domain),
+    statusIdx: index('target_verifications_status_idx').on(t.status),
+  }),
+);
+
+// ────────────────────────────────────────────────────────────────────────────
 // Dead-letter queue
 //
 // BullMQ jobs that exhaust their retry attempts are persisted here so they're
@@ -659,3 +714,5 @@ export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
 export type DeadJob = typeof deadJobs.$inferSelect;
 export type NewDeadJob = typeof deadJobs.$inferInsert;
+export type TargetVerification = typeof targetVerifications.$inferSelect;
+export type NewTargetVerification = typeof targetVerifications.$inferInsert;

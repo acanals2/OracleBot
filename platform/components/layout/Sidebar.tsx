@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   Code2,
   CreditCard,
+  Globe,
   LayoutDashboard,
   List,
   PlusCircle,
@@ -17,6 +18,7 @@ const links = [
   { href: '/app/tests/new', label: 'New test', icon: PlusCircle, exact: false },
   { href: '/app/tests', label: 'All runs', icon: List, exact: false },
   { href: '/app/workspaces', label: 'Workspaces', icon: Code2, exact: false },
+  { href: '/app/settings/domains', label: 'Domains', icon: Globe, exact: false },
   { href: '/app/billing', label: 'Billing', icon: CreditCard, exact: false },
 ];
 
