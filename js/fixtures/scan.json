@@ -1,0 +1,413 @@
+{
+  "_comment": "Captured from a real OracleBot scan via scripts/dev/export-scan-fixture.mts. Replayed by the homepage Live Scan modal.",
+  "run": {
+    "id": "043c22e4-2315-41c9-9122-bddd6052f7a6",
+    "mode": "site",
+    "packs": [
+      "web_classics",
+      "ai_built_apps"
+    ],
+    "target": "https://oracle-bot-seven.vercel.app",
+    "botCount": 5,
+    "durationMinutes": 3,
+    "readinessScore": 64,
+    "status": "completed"
+  },
+  "events": [
+    {
+      "tMs": -1819,
+      "type": "queued",
+      "message": "Run accepted and queued for execution."
+    },
+    {
+      "tMs": -7,
+      "type": "provisioning_started",
+      "message": "Provisioning sandbox."
+    },
+    {
+      "tMs": -2,
+      "type": "provisioning_completed",
+      "message": "Sandbox ready at https://oracle-bot-seven.vercel.app"
+    },
+    {
+      "tMs": 5,
+      "type": "run_started",
+      "message": "Bots executing."
+    },
+    {
+      "tMs": 7166,
+      "type": "finding_surfaced",
+      "message": "JS console error: Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "tMs": 108758,
+      "type": "finding_surfaced",
+      "message": "Slow response: / took 3504ms"
+    },
+    {
+      "tMs": 159581,
+      "type": "finding_surfaced",
+      "message": "Slow response: /monitoring took 12017ms"
+    },
+    {
+      "tMs": 164681,
+      "type": "finding_surfaced",
+      "message": "Slow response: /monitoring took 13840ms"
+    },
+    {
+      "tMs": 185016,
+      "type": "finding_surfaced",
+      "message": "Slow response: / took 13305ms"
+    },
+    {
+      "tMs": 232096,
+      "type": "finding_surfaced",
+      "message": "Slow response: / took 19729ms"
+    },
+    {
+      "tMs": 232204,
+      "type": "run_completed",
+      "message": "Run completed."
+    }
+  ],
+  "findings": [
+    {
+      "severity": "medium",
+      "category": "integration_bug",
+      "probeId": null,
+      "title": "JS console error: Failed to load resource: the server responded with a status of 404 ()",
+      "description": "Browser console error detected during hostile adversarial persona session. URL: https://oracle-bot-seven.vercel.app/sample-readiness-report.html",
+      "remediation": "Fix the JavaScript error to prevent client-side failures and potential information leakage."
+    },
+    {
+      "severity": "medium",
+      "category": "latency_cascade",
+      "probeId": null,
+      "title": "Slow response: / took 3504ms",
+      "description": "A request to / took 3504ms, exceeding the 3000ms threshold under 5 concurrent bots.",
+      "remediation": "Profile the endpoint and add caching or query optimization. Consider a CDN for static assets."
+    },
+    {
+      "severity": "medium",
+      "category": "latency_cascade",
+      "probeId": null,
+      "title": "Slow response: /monitoring took 12017ms",
+      "description": "A request to /monitoring took 12017ms, exceeding the 3000ms threshold under 5 concurrent bots.",
+      "remediation": "Profile the endpoint and add caching or query optimization. Consider a CDN for static assets."
+    },
+    {
+      "severity": "medium",
+      "category": "latency_cascade",
+      "probeId": null,
+      "title": "Slow response: /monitoring took 13840ms",
+      "description": "A request to /monitoring took 13840ms, exceeding the 3000ms threshold under 5 concurrent bots.",
+      "remediation": "Profile the endpoint and add caching or query optimization. Consider a CDN for static assets."
+    },
+    {
+      "severity": "medium",
+      "category": "latency_cascade",
+      "probeId": null,
+      "title": "Slow response: / took 13305ms",
+      "description": "A request to / took 13305ms, exceeding the 3000ms threshold under 5 concurrent bots.",
+      "remediation": "Profile the endpoint and add caching or query optimization. Consider a CDN for static assets."
+    },
+    {
+      "severity": "medium",
+      "category": "latency_cascade",
+      "probeId": null,
+      "title": "Slow response: / took 19729ms",
+      "description": "A request to / took 19729ms, exceeding the 3000ms threshold under 5 concurrent bots.",
+      "remediation": "Profile the endpoint and add caching or query optimization. Consider a CDN for static assets."
+    }
+  ],
+  "metrics": [
+    {
+      "tSeconds": 5,
+      "activeBots": 5,
+      "rps": 36,
+      "p50Ms": 1,
+      "p95Ms": 295,
+      "errorRate": 0.008333334
+    },
+    {
+      "tSeconds": 10,
+      "activeBots": 5,
+      "rps": 45.7,
+      "p50Ms": 0,
+      "p95Ms": 201,
+      "errorRate": 0.0065645515
+    },
+    {
+      "tSeconds": 15,
+      "activeBots": 5,
+      "rps": 24.1,
+      "p50Ms": 0,
+      "p95Ms": 54,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 20,
+      "activeBots": 5,
+      "rps": 24,
+      "p50Ms": 0,
+      "p95Ms": 54,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 25,
+      "activeBots": 5,
+      "rps": 24,
+      "p50Ms": 0,
+      "p95Ms": 53,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 30,
+      "activeBots": 5,
+      "rps": 22.2,
+      "p50Ms": 0,
+      "p95Ms": 87,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 35,
+      "activeBots": 5,
+      "rps": 40.7,
+      "p50Ms": 0,
+      "p95Ms": 109,
+      "errorRate": 0.0073710075
+    },
+    {
+      "tSeconds": 41,
+      "activeBots": 5,
+      "rps": 42.4,
+      "p50Ms": 0,
+      "p95Ms": 99,
+      "errorRate": 0.007075472
+    },
+    {
+      "tSeconds": 46,
+      "activeBots": 5,
+      "rps": 24,
+      "p50Ms": 0,
+      "p95Ms": 65,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 51,
+      "activeBots": 5,
+      "rps": 24.1,
+      "p50Ms": 0,
+      "p95Ms": 65,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 56,
+      "activeBots": 5,
+      "rps": 22.4,
+      "p50Ms": 0,
+      "p95Ms": 66,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 61,
+      "activeBots": 5,
+      "rps": 24,
+      "p50Ms": 0,
+      "p95Ms": 73,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 66,
+      "activeBots": 5,
+      "rps": 22.2,
+      "p50Ms": 0,
+      "p95Ms": 51,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 71,
+      "activeBots": 5,
+      "rps": 44.2,
+      "p50Ms": 0,
+      "p95Ms": 67,
+      "errorRate": 0.0067873304
+    },
+    {
+      "tSeconds": 76,
+      "activeBots": 5,
+      "rps": 39.7,
+      "p50Ms": 0,
+      "p95Ms": 76,
+      "errorRate": 0.007556675
+    },
+    {
+      "tSeconds": 81,
+      "activeBots": 5,
+      "rps": 24.3,
+      "p50Ms": 0,
+      "p95Ms": 55,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 86,
+      "activeBots": 5,
+      "rps": 19.9,
+      "p50Ms": 0,
+      "p95Ms": 55,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 91,
+      "activeBots": 5,
+      "rps": 24.1,
+      "p50Ms": 0,
+      "p95Ms": 51,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 96,
+      "activeBots": 5,
+      "rps": 20.8,
+      "p50Ms": 0,
+      "p95Ms": 91,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 102,
+      "activeBots": 5,
+      "rps": 23.4,
+      "p50Ms": 0,
+      "p95Ms": 306,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 107,
+      "activeBots": 5,
+      "rps": 40.7,
+      "p50Ms": 0,
+      "p95Ms": 356,
+      "errorRate": 0.0073710075
+    },
+    {
+      "tSeconds": 112,
+      "activeBots": 5,
+      "rps": 34.8,
+      "p50Ms": 0,
+      "p95Ms": 98,
+      "errorRate": 0.00862069
+    },
+    {
+      "tSeconds": 117,
+      "activeBots": 5,
+      "rps": 24,
+      "p50Ms": 0,
+      "p95Ms": 63,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 122,
+      "activeBots": 5,
+      "rps": 24.1,
+      "p50Ms": 0,
+      "p95Ms": 56,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 127,
+      "activeBots": 5,
+      "rps": 23.4,
+      "p50Ms": 0,
+      "p95Ms": 51,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 132,
+      "activeBots": 5,
+      "rps": 24.1,
+      "p50Ms": 0,
+      "p95Ms": 51,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 137,
+      "activeBots": 5,
+      "rps": 23,
+      "p50Ms": 0,
+      "p95Ms": 177,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 142,
+      "activeBots": 5,
+      "rps": 14,
+      "p50Ms": 0,
+      "p95Ms": 237,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 147,
+      "activeBots": 5,
+      "rps": 1.9,
+      "p50Ms": 0,
+      "p95Ms": 663,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 152,
+      "activeBots": 5,
+      "rps": 1.8,
+      "p50Ms": 1,
+      "p95Ms": 239,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 157,
+      "activeBots": 5,
+      "rps": 1.2,
+      "p50Ms": 182,
+      "p95Ms": 12017,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 163,
+      "activeBots": 5,
+      "rps": 0.6,
+      "p50Ms": 214,
+      "p95Ms": 13840,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 168,
+      "activeBots": 5,
+      "rps": 0.1,
+      "p50Ms": 13840,
+      "p95Ms": 13840,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 173,
+      "activeBots": 5,
+      "rps": 0,
+      "p50Ms": 0,
+      "p95Ms": 0,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 178,
+      "activeBots": 5,
+      "rps": 0,
+      "p50Ms": 0,
+      "p95Ms": 0,
+      "errorRate": 0
+    },
+    {
+      "tSeconds": 183,
+      "activeBots": 5,
+      "rps": 0.1,
+      "p50Ms": 13305,
+      "p95Ms": 13305,
+      "errorRate": 0
+    }
+  ]
+}

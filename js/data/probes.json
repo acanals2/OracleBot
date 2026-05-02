@@ -1,0 +1,75 @@
+{
+  "_comment": "Public probe manifest for the marketing-site Probe Explorer modal. Mirrors metadata from worker/src/engine/probes/*.ts. Keep in sync (no implementation details, just titles + descriptions + severity tiers).",
+  "version": 1,
+  "packs": [
+    {
+      "id": "web_classics",
+      "label": "Web Classics",
+      "tagline": "The original Oracle Bot probe set.",
+      "description": "Race conditions, auth gaps, malformed-input handling, prompt injection, hallucinations, jailbreaks, rate-limit cliffs.",
+      "audience": "Any web app, AI agent, or API approaching launch.",
+      "shipped": true,
+      "probes": [
+        { "id": "site_console_error", "title": "JS console error during navigation", "severity": "medium", "description": "Browser console emitted an error while a synthetic user navigated the site." },
+        { "id": "site_form_auth_gap", "title": "Form submit returned non-2xx without auth", "severity": "high", "description": "A state-mutating form accepted submission from an unauthenticated session." },
+        { "id": "site_concurrent_submit_race", "title": "Concurrent form submissions produced inconsistent responses", "severity": "high", "description": "Same payload submitted concurrently produced duplicates or divergent responses." },
+        { "id": "site_response_latency", "title": "Slow response under realistic load", "severity": "medium", "description": "Response time exceeded the latency budget for an interactive flow." },
+        { "id": "site_form_500_on_adversarial", "title": "Server 500 on adversarial form input", "severity": "high", "description": "A form rendered a 5xx response when a synthetic user submitted adversarial-but-valid-looking input." },
+        { "id": "agent_system_prompt_leak", "title": "Agent revealed system prompt", "severity": "critical", "description": "Agent response contained text consistent with its own system instructions." },
+        { "id": "agent_jailbreak", "title": "Agent broke character / safety guardrails", "severity": "high", "description": "Agent ignored its instructions when faced with a known jailbreak pattern." },
+        { "id": "agent_prompt_injection", "title": "Agent followed an injected instruction", "severity": "critical", "description": "A user-controlled message embedded an instruction that the agent then executed as if operator-authored." },
+        { "id": "agent_hallucination", "title": "Agent confidently stated a falsehood", "severity": "medium", "description": "Agent fabricated a fact that could mislead a real user." },
+        { "id": "agent_off_topic_drift", "title": "Agent answered an unrelated request", "severity": "low", "description": "Agent engaged with a topic outside its declared scope when prompted by a synthetic user." },
+        { "id": "agent_no_rate_limit", "title": "No rate limit on agent endpoint", "severity": "high", "description": "Burst traffic to the agent endpoint never triggered 429 responses, leaving cost / abuse exposure." },
+        { "id": "agent_response_latency", "title": "Slow agent response under load", "severity": "medium", "description": "Agent turn exceeded the latency budget; degrades UX and may indicate runaway generation." },
+        { "id": "api_no_rate_limit", "title": "No rate limit on API endpoint", "severity": "high", "description": "Burst traffic to an API endpoint never triggered 429 responses." },
+        { "id": "api_unauthenticated_500", "title": "Endpoint returned 500/200 when 401 expected", "severity": "high", "description": "Hitting a protected endpoint without credentials yielded a server error or a successful response instead of 401." },
+        { "id": "api_malformed_input_500", "title": "API 500 on malformed input", "severity": "high", "description": "API endpoint crashed with 5xx when sent malformed but well-formed-looking input." },
+        { "id": "api_cors_or_security_headers", "title": "Insecure CORS or missing security headers", "severity": "medium", "description": "API responded with permissive CORS or missing security headers on a sensitive endpoint." }
+      ]
+    },
+    {
+      "id": "ai_built_apps",
+      "label": "AI-Built Apps",
+      "tagline": "Failure modes specific to AI-generated code.",
+      "description": "Hardcoded secrets in client bundles, exposed Supabase anon keys, missing RLS, leaked stack traces on errors, dev/debug endpoints reachable in production, permissive CORS.",
+      "audience": "Apps shipped via Lovable, v0, Bolt, Cursor, Replit Agent, Claude Code.",
+      "shipped": true,
+      "probes": [
+        { "id": "hardcoded_secret_in_bundle", "title": "Hardcoded secret in client bundle", "severity": "critical", "description": "Pattern-matches client-side JavaScript for known secret formats (OpenAI / Anthropic / Stripe / GitHub / Resend keys, generic JWTs, .env-leaked variables)." },
+        { "id": "supabase_anon_key_exposed", "title": "Supabase anon key in client bundle", "severity": "high", "description": "Scans the bundle for a Supabase project URL + anon JWT. The anon key alone is meant to be public — severity escalates only if the missing_rls_on_public_tables probe also fires." },
+        { "id": "missing_rls_on_public_tables", "title": "Public Supabase tables readable without authentication", "severity": "critical", "description": "When a Supabase anon key is found in the bundle, OracleBot fetches the project's PostgREST OpenAPI schema and attempts a single LIMIT-1 read against each exposed table. Tables that return rows have no Row Level Security gate — anyone visiting the site can read user data." },
+        { "id": "default_error_page_leak", "title": "Framework version / stack trace leaked on error", "severity": "medium", "description": "Triggers a 404 or 500 and inspects the response for framework version banners, stack traces, or absolute file paths that AI builders commonly leave on." },
+        { "id": "exposed_debug_endpoints", "title": "Development / debug endpoint reachable in production", "severity": "medium", "description": "Probes for a small list of well-known development endpoints (Next.js dev overlay, Prisma Studio, GraphQL introspection, etc.) that should not be reachable in production builds." },
+        { "id": "insecure_cors_on_api_routes", "title": "Permissive CORS on API routes", "severity": "medium", "description": "Sends an OPTIONS preflight from a foreign origin to the discovered API base and flags wildcard Access-Control-Allow-Origin: * on endpoints that may handle user data." }
+      ]
+    },
+    {
+      "id": "llm_endpoints",
+      "label": "LLM Endpoints",
+      "tagline": "Adversarial probes for HTTP endpoints wrapping an LLM.",
+      "description": "System-prompt extraction, prompt injection via user content, PII echo, cost amplification attacks, unsafe tool-call execution, and missing output-length caps.",
+      "audience": "Anyone shipping a chatbot, RAG endpoint, or LLM-backed API.",
+      "shipped": false,
+      "probes": []
+    },
+    {
+      "id": "mcp_server",
+      "label": "MCP Server",
+      "tagline": "Tool poisoning and capability-escalation probes for MCP servers.",
+      "description": "Tool-description injection, credential leakage in tool schemas, missing transport auth, cross-resource access, capability escalation via sampling. HTTP / SSE transport only.",
+      "audience": "Teams deploying MCP servers that expose tools to AI hosts.",
+      "shipped": false,
+      "probes": []
+    },
+    {
+      "id": "agent_runtime",
+      "label": "Agent Runtime",
+      "tagline": "Long-horizon adversarial probes for production AI agents.",
+      "description": "Multi-turn jailbreak escalation, tool-use safety boundaries, memory poisoning, persona drift across sessions.",
+      "audience": "Production AI agents handling real user sessions.",
+      "shipped": false,
+      "probes": []
+    }
+  ]
+}

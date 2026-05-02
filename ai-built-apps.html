@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OracleBot for AI-built apps — Lovable, v0, Bolt, Cursor, Claude Code</title>
+<meta name="description" content="OracleBot scans the failure modes that AI coding agents ship by default — exposed Supabase keys, missing RLS, hardcoded secrets, prompt injection, dev surfaces in production. One scan. A readiness score. A badge for your README.">
+<meta name="theme-color" content="#07080B">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/pages.css">
+<meta property="og:title" content="OracleBot for AI-built apps">
+<meta property="og:description" content="The readiness layer for code shipped via Lovable, v0, Bolt, Cursor, Replit Agent, and Claude Code.">
+<meta property="og:type" content="website">
+</head>
+<body>
+
+<header class="nav">
+  <a href="index.html" class="nav__brand" aria-label="OracleBot home">
+    <span class="mark">O</span>
+    <span><b>OracleBot</b><small>v0.1 · early access</small></span>
+  </a>
+  <nav class="nav__links">
+    <a href="index.html#problem">Problem</a>
+    <a href="index.html#how">How it works</a>
+    <a href="ai-built-apps.html" class="is-active">AI-built apps</a>
+    <a href="trading.html">Trading</a>
+    <a href="index.html#commitments">Commitments</a>
+  </nav>
+  <div class="nav__cta">
+    <span class="status">Waitlist open</span>
+    <a href="index.html#waitlist" class="btn btn--signal">Join waitlist <span class="arrow">&rarr;</span></a>
+  </div>
+  <button class="nav__burger" aria-label="Menu"><span></span><span></span><span></span></button>
+</header>
+
+<main>
+
+  <!-- ========== HERO ========== -->
+  <section class="hero">
+    <div class="wrap hero__inner">
+      <div class="hero__copy">
+        <span class="eyebrow" data-reveal>For apps shipped via AI codegen</span>
+        <h1 class="hero__title" data-reveal data-reveal-delay="1">
+          You shipped fast.
+          <em>OracleBot tells you what they missed.</em>
+        </h1>
+        <p class="hero__sub" data-reveal data-reveal-delay="2">
+          Lovable, v0, Bolt, Cursor, Replit Agent, Claude Code &mdash; they generate working apps in minutes. They also generate apps with credentials in the bundle, RLS off, debug surfaces on. Six probes. Read-only. Run before you go live.
+        </p>
+        <div class="hero__ctas" data-reveal data-reveal-delay="3">
+          <button type="button" class="btn btn--signal" data-modal-open="live-scan" aria-haspopup="dialog">See a real scan <span class="arrow">&rarr;</span></button>
+          <a href="index.html#waitlist" class="btn btn--ghost">Join the waitlist <span class="arrow">&rarr;</span></a>
+        </div>
+        <p class="hero__badge" data-reveal data-reveal-delay="4">
+          <button type="button" class="hero__badge-btn"
+                  data-modal-open="embed-badge"
+                  data-verification-id="2b840cd6-078e-403c-962e-41e26a19e030"
+                  aria-haspopup="dialog"
+                  aria-label="Open the embed-your-badge modal">
+            <img src="https://oraclebot.net/api/badge/2b840cd6-078e-403c-962e-41e26a19e030.svg"
+                 alt="OracleBot Readiness 64/100" width="89" height="20"
+                 loading="eager" decoding="async">
+          </button>
+          <span class="hero__badge-note">our own score &mdash; click to embed</span>
+        </p>
+      </div>
+
+      <div class="hero__visual" data-reveal data-reveal-delay="2">
+        <div class="terminal" aria-hidden="true">
+          <div class="terminal__head">
+            <div class="terminal__dots"><i></i><i></i><i></i></div>
+            <span class="terminal__title">~/oraclebot &mdash; ai-built-apps scan</span>
+          </div>
+<pre class="terminal__body"><span class="prompt">$</span> <span class="ink">oraclebot run</span> <span class="flag">--target</span> my-app.lovable.app \
+    <span class="flag">--packs</span> ai_built_apps
+
+<span class="dim">[scan]</span> probing client bundles
+<span class="dim">[scan]</span> <span class="ok">●</span> supabase_anon_key_exposed
+            <span class="ink">project: yzb...okp.supabase.co</span>
+<span class="dim">[scan]</span> <span class="bad">!</span> missing_rls_on_public_tables
+            <span class="ink">tables: users, posts, dm_threads</span>
+<span class="dim">[scan]</span> <span class="bad">!</span> hardcoded_secret_in_bundle
+            <span class="ink">OpenAI API key (sk-p…h7Kp)</span>
+<span class="dim">[scan]</span> exposed_debug_endpoints
+            <span class="ink">/__nextjs_original-stack-frame</span>
+<span class="dim">[done]</span> readiness <span class="num">38</span><span class="terminal__cursor"></span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PROBE GRID ========== -->
+  <section class="problem" id="probes">
+    <div class="wrap">
+      <div class="section__head" data-reveal>
+        <span class="eyebrow">Six probes · read-only · no credentials harvested</span>
+        <h2 class="display display--lg">What OracleBot scans for in <em>AI-generated code.</em></h2>
+        <p class="lede">Click any probe to see what it checks, the severity tier, and an example finding. Every probe in this pack is read-only &mdash; we never POST, PUT, PATCH, or DELETE.</p>
+      </div>
+      <div class="probe-grid" id="probe-grid"></div>
+    </div>
+  </section>
+
+  <!-- ========== WAITLIST ========== -->
+  <section class="waitlist" id="waitlist">
+    <div class="wrap waitlist__inner">
+      <div class="section__head" data-reveal>
+        <span class="eyebrow">Early access</span>
+        <h2 class="display display--lg">Get on the waitlist.</h2>
+        <p class="lede">We're onboarding teams shipping AI-built apps. First batch gets two free scans + a public score badge.</p>
+      </div>
+      <form class="waitlist__form" data-waitlist-form data-reveal data-reveal-delay="2">
+        <input type="email" name="email" placeholder="you@yourcompany.com" required>
+        <button type="submit" class="btn btn--signal">Request access <span class="arrow">&rarr;</span></button>
+      </form>
+      <div class="waitlist__thanks" data-reveal>
+        <span class="ok">●</span>
+        <span>You're on the list. We'll be in touch.</span>
+      </div>
+      <p class="waitlist__meta" data-reveal data-reveal-delay="3">No spam. We only email you when your scan is ready.</p>
+    </div>
+  </section>
+
+</main>
+
+<!-- Modal infrastructure (shared with index.html) -->
+<dialog id="ob-modal" class="ob-modal" aria-modal="true" aria-labelledby="ob-modal-title">
+  <div class="ob-modal__shell">
+    <header class="ob-modal__head">
+      <p id="ob-modal-eyebrow" class="ob-modal__eyebrow"></p>
+      <h2 id="ob-modal-title" class="ob-modal__title"></h2>
+      <button type="button" class="ob-modal__close" data-modal-close aria-label="Close modal">&times;</button>
+    </header>
+    <div id="ob-modal-body" class="ob-modal__body"></div>
+  </div>
+</dialog>
+
+<footer class="footer">
+  <div class="wrap footer__grid">
+    <div class="footer__brand">
+      <div class="mark-row">
+        <span class="nav__brand"><span class="mark">O</span></span>
+        <b>OracleBot</b>
+      </div>
+      <p>The readiness layer for AI-built software.</p>
+    </div>
+    <div>
+      <h5>Product</h5>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="ai-built-apps.html">AI-built apps</a></li>
+        <li><a href="trading.html">Trading &amp; fintech</a></li>
+        <li><a href="sample-readiness-report.html">Sample report</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap footer__legal">
+    <span>&copy; 2026 OracleBot</span>
+    <span>oraclebot.net</span>
+  </div>
+</footer>
+
+<script>
+  // Render probe cards. Reads the same manifest the modals use.
+  (async function () {
+    const grid = document.getElementById('probe-grid');
+    if (!grid) return;
+    try {
+      const res = await fetch('js/data/probes.json', { cache: 'force-cache' });
+      const data = await res.json();
+      const pack = (data.packs || []).find((p) => p.id === 'ai_built_apps');
+      if (!pack) return;
+      grid.innerHTML = (pack.probes || []).map((p) => `
+        <button type="button" class="probe-card"
+                data-modal-open="probe-explorer" data-probe-id="${p.id}"
+                aria-haspopup="dialog">
+          <span class="probe-card__sev ob-probe__sev--${p.severity}">${p.severity}</span>
+          <h3 class="probe-card__title">${escapeHtml(p.title)}</h3>
+          <p class="probe-card__desc">${escapeHtml(p.description)}</p>
+        </button>
+      `).join('');
+    } catch (_) {
+      grid.innerHTML = '<p style="color: var(--ink-dim);">Could not load probe list.</p>';
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+  })();
+</script>
+<script src="js/main.js"></script>
+</body>
+</html>
