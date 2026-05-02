@@ -670,6 +670,50 @@ export const workspaces = pgTable(
   }),
 );
 
+/**
+ * API tokens — Phase 17 (GitHub Action + CI integrations).
+ *
+ * An API token is org-scoped, attributed to a creating user, and bears the
+ * creator's role. It carries no separate role of its own — Better Auth's
+ * authorisation logic still routes through the user/org/role triple. Tokens
+ * authenticate `Authorization: Bearer obt_<32 chars>` requests to /api/runs
+ * etc. without a session cookie.
+ *
+ * Privacy: we never store the raw token. The `tokenHash` column holds a
+ * SHA-256 hex digest of `<token>+<INTERNAL_API_SECRET>`. Lookups happen by
+ * hash; the raw token is shown to the user once at creation and never again.
+ */
+export const apiTokens = pgTable(
+  'api_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    /** User who created the token. Role is inherited at request time. */
+    createdByUserId: text('created_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    /** Human-friendly label (e.g. "GitHub Action - my-org/my-repo"). */
+    name: text('name').notNull(),
+    /** First 8 chars of the raw token (e.g. "obt_a1b2") — shown in the UI. */
+    tokenPrefix: text('token_prefix').notNull(),
+    /** SHA-256 hex digest of `<token>+<INTERNAL_API_SECRET>`. */
+    tokenHash: text('token_hash').notNull(),
+    /** Optional expiry; null = no expiry. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    /** Last time the token successfully authenticated a request. */
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    /** Manual revocation — sets revokedAt; lookups must filter on this. */
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgIdx: index('api_tokens_org_idx').on(t.orgId),
+    hashIdx: uniqueIndex('api_tokens_hash_idx').on(t.tokenHash),
+  }),
+);
+
 // ────────────────────────────────────────────────────────────────────────────
 // Relations
 // ────────────────────────────────────────────────────────────────────────────
@@ -780,3 +824,5 @@ export type TargetVerification = typeof targetVerifications.$inferSelect;
 export type NewTargetVerification = typeof targetVerifications.$inferInsert;
 export type WebhookEvent = typeof webhookEvents.$inferSelect;
 export type NewWebhookEvent = typeof webhookEvents.$inferInsert;
+export type ApiToken = typeof apiTokens.$inferSelect;
+export type NewApiToken = typeof apiTokens.$inferInsert;

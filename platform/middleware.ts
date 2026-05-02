@@ -18,6 +18,7 @@ const PROTECTED_PREFIXES = [
   '/api/oracle',
   '/api/verify-target',
   '/api/entitlements',
+  '/api/tokens',
 ];
 
 const PREVIEW_PROXY_PREFIX = '/preview/';
@@ -38,7 +39,15 @@ export function middleware(req: NextRequest) {
   if (!isProtected) return NextResponse.next();
 
   const cookie = getSessionCookie(req);
-  if (!cookie) {
+  // Phase 17: API routes also accept `Authorization: Bearer obt_*` for
+  // CI / GitHub Action / CLI clients. Middleware does a cheap presence check
+  // — full validation (hash, expiry, revocation) happens in the route via
+  // requireSessionOrToken().
+  const hasBearerToken =
+    pathname.startsWith('/api/') &&
+    /^Bearer\s+obt_/i.test(req.headers.get('authorization') ?? '');
+
+  if (!cookie && !hasBearerToken) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { ok: false, error: 'unauthenticated' },

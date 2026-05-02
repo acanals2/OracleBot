@@ -9,7 +9,7 @@
  * sandbox we provision, so domain ownership doesn't apply.
  */
 import { NextRequest } from 'next/server';
-import { requireSession } from '@/lib/auth';
+import { requireSessionOrToken } from '@/lib/api-tokens';
 import { apiError, ok } from '@/lib/api-helpers';
 import {
   createRun,
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const traceId = newTraceId();
   const log = logger.child({ traceId, route: '/api/runs' });
   try {
-    const session = await requireSession();
+    const session = await requireSessionOrToken();
     const body = await req.json();
     const input = createRunInputSchema.parse(body);
 
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   const traceId = newTraceId();
   try {
-    const session = await requireSession();
+    const session = await requireSessionOrToken();
     const runs = await listRunsForOrg(session.org.id, 100);
     return ok({ runs });
   } catch (e) {

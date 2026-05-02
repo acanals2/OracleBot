@@ -1,0 +1,128 @@
+name: 'OracleBot Scan'
+description: 'Run an OracleBot readiness scan, post a PR comment with the score, fail the build below threshold.'
+author: 'OracleBot'
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  oraclebot-token:
+    description: 'OracleBot API token (obt_*). Create one at oraclebot.net under Settings → API tokens.'
+    required: true
+  target-url:
+    description: 'URL to scan. Must be a verified domain on the OracleBot org tied to the token.'
+    required: true
+  packs:
+    description: 'Comma-separated probe pack ids. Defaults to web_classics + ai_built_apps.'
+    required: false
+    default: 'web_classics,ai_built_apps'
+  product-key:
+    description: 'Tier the run is billed against. Defaults to free.'
+    required: false
+    default: 'free'
+  min-score:
+    description: 'Minimum readiness score (0-100). The action fails the build below this.'
+    required: false
+    default: '70'
+  fail-on-low:
+    description: 'When false, the action posts the result but does not fail the build.'
+    required: false
+    default: 'true'
+  max-wait-min:
+    description: 'How long to wait for the scan to complete before timing out.'
+    required: false
+    default: '20'
+  run-name:
+    description: 'Human-friendly name for the run row. Defaults to <repo>@<sha>.'
+    required: false
+  api-url:
+    description: 'OracleBot API base URL. Override only for self-hosted deployments.'
+    required: false
+    default: 'https://oraclebot.net'
+  comment-on-pr:
+    description: 'Post a PR comment with the score (when running in a pull_request context). Default true.'
+    required: false
+    default: 'true'
+  github-token:
+    description: 'GitHub token with `pull-requests: write` permission. Required if comment-on-pr=true.'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  score:
+    description: 'Readiness score (0-100), or empty on failure.'
+    value: ${{ steps.scan.outputs.score }}
+  status:
+    description: 'Final run status (completed, failed, canceled, timed_out).'
+    value: ${{ steps.scan.outputs.status }}
+  run-id:
+    description: 'OracleBot run id.'
+    value: ${{ steps.scan.outputs.run-id }}
+  run-url:
+    description: 'Link to the full report in the OracleBot dashboard.'
+    value: ${{ steps.scan.outputs.run-url }}
+  badge-url:
+    description: 'Public badge SVG URL — empty if the target has no verified entry.'
+    value: ${{ steps.scan.outputs.badge-url }}
+  score-page-url:
+    description: 'Public score page URL.'
+    value: ${{ steps.scan.outputs.score-page-url }}
+  findings-count:
+    description: 'Total number of findings returned by the scan.'
+    value: ${{ steps.scan.outputs.findings-count }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: scan
+      shell: bash
+      env:
+        INPUT_ORACLEBOT_TOKEN: ${{ inputs.oraclebot-token }}
+        INPUT_TARGET_URL: ${{ inputs.target-url }}
+        INPUT_PACKS: ${{ inputs.packs }}
+        INPUT_PRODUCT_KEY: ${{ inputs.product-key }}
+        INPUT_MIN_SCORE: ${{ inputs.min-score }}
+        INPUT_FAIL_ON_LOW: ${{ inputs.fail-on-low }}
+        INPUT_MAX_WAIT_MIN: ${{ inputs.max-wait-min }}
+        INPUT_RUN_NAME: ${{ inputs.run-name }}
+        INPUT_API_URL: ${{ inputs.api-url }}
+      run: node ${{ github.action_path }}/scan.mjs
+
+    - name: Post PR comment
+      if: ${{ inputs.comment-on-pr == 'true' && github.event_name == 'pull_request' && steps.scan.outputs.comment-path != '' }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        OB_RUN_ID: ${{ steps.scan.outputs.run-id }}
+        OB_COMMENT_PATH: ${{ steps.scan.outputs.comment-path }}
+      run: |
+        # Hidden marker so we can find + edit our own comment on subsequent
+        # runs instead of stacking new ones.
+        MARKER="<!-- oraclebot-scan:${OB_RUN_ID%-*} -->"
+        BODY="$MARKER
+        $(cat "$OB_COMMENT_PATH")"
+
+        ISSUE_NUMBER="${{ github.event.pull_request.number }}"
+        REPO="${{ github.repository }}"
+        API="${GITHUB_API_URL:-https://api.github.com}"
+
+        # Find an existing OracleBot comment on this PR.
+        EXISTING=$(curl -sf -H "Authorization: Bearer $GITHUB_TOKEN" \
+          "$API/repos/$REPO/issues/$ISSUE_NUMBER/comments?per_page=100" \
+          | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const a=JSON.parse(d);const m=a.find(c=>c.body && c.body.startsWith("<!-- oraclebot-scan:"));process.stdout.write(m?String(m.id):"")})')
+
+        if [ -n "$EXISTING" ]; then
+          curl -sf -X PATCH \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$(node -e 'process.stdout.write(JSON.stringify({body: require("fs").readFileSync(process.env.OB_COMMENT_PATH,"utf8")}))' | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{const o=JSON.parse(d);o.body="<!-- oraclebot-scan:'"${OB_RUN_ID%-*}"' -->\n"+o.body;process.stdout.write(JSON.stringify(o))})')" \
+            "$API/repos/$REPO/issues/comments/$EXISTING" > /dev/null
+          echo "Updated existing OracleBot comment ($EXISTING)"
+        else
+          curl -sf -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$(node -e 'process.stdout.write(JSON.stringify({body: "<!-- oraclebot-scan:'"${OB_RUN_ID%-*}"' -->\n"+require("fs").readFileSync(process.env.OB_COMMENT_PATH,"utf8")}))')" \
+            "$API/repos/$REPO/issues/$ISSUE_NUMBER/comments" > /dev/null
+          echo "Posted new OracleBot comment"
+        fi

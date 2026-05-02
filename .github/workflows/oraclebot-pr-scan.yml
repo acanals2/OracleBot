@@ -1,0 +1,34 @@
+name: OracleBot readiness check
+
+# Dogfooding: every PR + every push to main runs an OracleBot scan against
+# the deployed marketing site, posts the score as a PR comment, and fails
+# the build if the score drops below the configured floor.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  scan:
+    name: Scan deployed marketing site
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run OracleBot scan
+        uses: ./.github/actions/oraclebot-scan
+        with:
+          oraclebot-token: ${{ secrets.ORACLEBOT_TOKEN }}
+          target-url: https://oracle-bot-seven.vercel.app
+          packs: web_classics,ai_built_apps
+          min-score: 60
+          fail-on-low: true
+          run-name: oraclebot-marketing@${{ github.sha }}

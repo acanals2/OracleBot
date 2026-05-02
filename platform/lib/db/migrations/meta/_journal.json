@@ -43,6 +43,13 @@
       "when": 1777673199186,
       "tag": "0005_ancient_anita_blake",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777742560402,
+      "tag": "0006_gifted_fabian_cortez",
+      "breakpoints": true
     }
   ]
 }
