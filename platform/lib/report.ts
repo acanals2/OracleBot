@@ -5,18 +5,22 @@
  * completes, we compute the readiness score and a structured summary using
  * these helpers, then persist them on the `runs` row.
  *
- * Scoring is intentionally simple right now — pure additive penalties from
- * findings, capped at 0. Tunable per-mode via WEIGHTS.
+ * Scoring weights MUST stay in sync with `worker/src/engine/scoring.ts`
+ * (the canonical version). The total-score branch below mirrors
+ * `computeReadinessScore` exactly: per-severity deduction + a one-time
+ * −5 bonus penalty when any critical finding is present.
  */
 import type { RunFinding } from './db/schema';
 
 const SEVERITY_PENALTY: Record<RunFinding['severity'], number> = {
   critical: 25,
   high: 12,
-  medium: 5,
+  medium: 6,
   low: 2,
-  info: 0,
+  info: 0.5,
 };
+
+const CRITICAL_BONUS_PENALTY = 5;
 
 interface ScoreBreakdown {
   total: number; // 0-100
@@ -35,17 +39,15 @@ export function computeReadiness(
   findings: RunFinding[],
   mode: 'site' | 'agent' | 'api' | 'stack',
 ): ScoreBreakdown {
-  let penalty = 0;
   const findingsBySeverity: Record<string, number> = {};
   const findingsByCategory: Record<string, number> = {};
 
   for (const f of findings) {
-    penalty += SEVERITY_PENALTY[f.severity];
     findingsBySeverity[f.severity] = (findingsBySeverity[f.severity] ?? 0) + 1;
     findingsByCategory[f.category] = (findingsByCategory[f.category] ?? 0) + 1;
   }
 
-  const total = Math.max(0, Math.min(100, 100 - penalty));
+  const total = scoreFindings(findings);
 
   const perMode: ScoreBreakdown['perMode'] = {};
   if (mode === 'stack') {
@@ -67,11 +69,24 @@ export function computeReadiness(
   return { total, perMode, findingsBySeverity, findingsByCategory };
 }
 
+/**
+ * Mirror of `computeReadinessScore` in worker/src/engine/scoring.ts.
+ * Keep these two implementations identical.
+ */
+function scoreFindings(findings: RunFinding[]): number {
+  let score = 100;
+  let hasCritical = false;
+  for (const f of findings) {
+    score -= SEVERITY_PENALTY[f.severity] ?? 0;
+    if (f.severity === 'critical') hasCritical = true;
+  }
+  if (hasCritical) score -= CRITICAL_BONUS_PENALTY;
+  return Math.max(0, Math.round(score));
+}
+
 function subScore(findings: RunFinding[], categories: string[]): number {
   const subset = findings.filter((f) => categories.includes(f.category));
-  let penalty = 0;
-  for (const f of subset) penalty += SEVERITY_PENALTY[f.severity];
-  return Math.max(0, Math.min(100, 100 - penalty));
+  return scoreFindings(subset);
 }
 
 /**

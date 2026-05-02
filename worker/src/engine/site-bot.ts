@@ -98,6 +98,7 @@ async function runBot(
         state.findings.push({
           severity: 'medium',
           category: 'integration_bug',
+          probeId: 'site_console_error',
           title: `JS console error: ${msg.text().substring(0, 120)}`,
           description: `Browser console error detected during ${persona} persona session. URL: ${page?.url() ?? targetUrl}`,
           reproJson: {
@@ -133,6 +134,7 @@ async function runBot(
         state.findings.push({
           severity: 'medium',
           category: 'latency_cascade',
+          probeId: 'site_response_latency',
           title: `Slow response: ${new URL(req.url()).pathname} took ${Math.round(durationMs)}ms`,
           description: `A request to ${new URL(req.url()).pathname} took ${Math.round(durationMs)}ms, exceeding the ${SLOW_RESPONSE_THRESHOLD_MS}ms threshold under ${state.activeBots} concurrent bots.`,
           reproJson: {
@@ -191,6 +193,7 @@ async function runBot(
                   state.findings.push({
                     severity: 'high',
                     category: 'malformed_input',
+                    probeId: 'site_form_500_on_adversarial',
                     title: `Server error on adversarial form input (HTTP ${res.status()})`,
                     description: `Submitting adversarial inputs to a form on ${new URL(targetUrl).pathname} caused HTTP ${res.status()}. Server should validate and reject bad input gracefully.`,
                     reproJson: {
@@ -214,6 +217,7 @@ async function runBot(
                   state.findings.push({
                     severity: 'critical',
                     category: 'auth_gap',
+                    probeId: 'site_form_auth_gap',
                     title: 'Possible auth bypass: SQL injection input returned 200',
                     description: `Submitting "${inputs['email']}" to a login/auth form returned HTTP 200. This may indicate SQL injection vulnerability or missing input sanitization.`,
                     reproJson: {
@@ -358,6 +362,7 @@ async function checkRaceCondition(
       state.findings.push({
         severity: 'high',
         category: 'race_condition',
+        probeId: 'site_concurrent_submit_race',
         title: `Race condition: ${successCount}/${RACE_COUNT} concurrent submissions succeeded`,
         description: `${successCount} simultaneous form submissions with the same data all returned success. This may allow duplicate records, double-charges, or inventory discrepancies under high concurrency.`,
         reproJson: {

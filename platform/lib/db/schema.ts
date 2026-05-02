@@ -128,6 +128,15 @@ export const findingCategoryEnum = pgEnum('finding_category', [
   'latency_cascade',
   'state_drift',
   'other',
+  // Phase 10 — added for AI-built / LLM / MCP probe packs.
+  'exposed_secret',
+  'missing_rls',
+  'client_key_leak',
+  'tool_poisoning',
+  'pii_echo',
+  'schema_violation',
+  'capability_escalation',
+  'credential_in_tool_desc',
 ]);
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -371,6 +380,16 @@ export const runs = pgTable(
     mode: runModeEnum('mode').notNull(),
     name: text('name').notNull(),
 
+    /**
+     * Probe pack ids selected for this run (Phase 10).
+     *
+     * Nullable for backward compatibility — runs created before pack
+     * selection was added behave as if `['web_classics']` was chosen.
+     * The `mode` column stays the source of truth for engine routing
+     * until pack-based selection is fully wired through the worker.
+     */
+    packs: jsonb('packs').$type<string[]>(),
+
     targetRepoUrl: text('target_repo_url'),
     targetCommitSha: text('target_commit_sha'),
     targetDockerImage: text('target_docker_image'),
@@ -457,6 +476,13 @@ export const runFindings = pgTable(
       .references(() => runs.id, { onDelete: 'cascade' }),
     severity: findingSeverityEnum('severity').notNull(),
     category: findingCategoryEnum('category').notNull(),
+    /**
+     * Probe id that produced this finding (Phase 10). Nullable for
+     * backward compatibility with findings recorded before the probe
+     * registry existed; resolves to a `web_classics` probe in those
+     * cases via the application layer.
+     */
+    probeId: text('probe_id'),
     title: text('title').notNull(),
     description: text('description').notNull(),
     reproJson: jsonb('repro_json').$type<{

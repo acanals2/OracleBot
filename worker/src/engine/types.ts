@@ -42,7 +42,23 @@ export interface RawFinding {
     | 'cost_runaway'
     | 'latency_cascade'
     | 'state_drift'
-    | 'other';
+    | 'other'
+    // Phase 10 — added for AI-built / LLM / MCP probe packs.
+    | 'exposed_secret'
+    | 'missing_rls'
+    | 'client_key_leak'
+    | 'tool_poisoning'
+    | 'pii_echo'
+    | 'schema_violation'
+    | 'capability_escalation'
+    | 'credential_in_tool_desc';
+  /**
+   * Probe id from `worker/src/engine/packs.ts` PROBE_REGISTRY. Optional during
+   * the Phase 10a→10b transition; engines that haven't been tagged yet emit
+   * findings without one. Once an engine is fully tagged, every emission
+   * carries its probe id and the platform can group findings by pack.
+   */
+  probeId?: string;
   title: string;
   description: string;
   reproJson?: {

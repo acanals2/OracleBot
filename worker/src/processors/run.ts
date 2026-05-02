@@ -95,6 +95,10 @@ export async function processExecuteRun(job: Job<ExecuteRunJobData>, parentLog?:
             reproJson: event.reproJson ?? null,
             remediation: event.remediation ?? null,
             fixPullRequestUrl: event.fixPullRequestUrl ?? null,
+            // Phase 10b: engines tag emissions with probe IDs from the
+            // web_classics registry. Older callers may still emit without
+            // one — fall through as null so the schema constraint is met.
+            probeId: event.probeId ?? null,
           });
           await appendEvent(runId, 'finding_surfaced', event.title, {
             severity: event.severity,

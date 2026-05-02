@@ -9,6 +9,7 @@ import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import type { RunFinding } from '@/lib/db/schema';
+import { packForProbe } from '@/data/packs';
 
 type Severity = RunFinding['severity'];
 
@@ -152,8 +153,22 @@ function FindingCard({
         aria-expanded={hasDetails ? isExpanded : undefined}
       >
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em]">
-            {finding.severity} · {finding.category}
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] uppercase tracking-[0.16em]">
+            <span>
+              {finding.severity} · {finding.category}
+            </span>
+            {(() => {
+              const pack = packForProbe(finding.probeId);
+              if (!pack) return null;
+              return (
+                <span
+                  className="rounded-md border border-ob-line/60 bg-ob-bg/40 px-1.5 py-0.5 text-[10px] tracking-[0.12em] text-ob-dim"
+                  title={`Probe: ${finding.probeId}`}
+                >
+                  {pack.label}
+                </span>
+              );
+            })()}
           </p>
           <p className="mt-2 font-display text-base text-ob-ink">{finding.title}</p>
           <p className="mt-1 text-sm text-ob-muted">{finding.description}</p>

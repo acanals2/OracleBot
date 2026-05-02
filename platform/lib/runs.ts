@@ -25,6 +25,7 @@ import {
 } from './db/schema';
 import { z } from 'zod';
 import crypto from 'node:crypto';
+import { PACK_IDS, PACKS, type PackId } from '../data/packs';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Validation schemas — matched against POST /api/runs body
@@ -68,6 +69,18 @@ export const createRunInputSchema = z
       .array(z.object({ archetype: z.string(), weight: z.number().min(0).max(1) }))
       .optional(),
     scenarioIds: z.array(z.string()).optional(),
+    /**
+     * Probe pack ids selected for this run (Phase 10).
+     *
+     * Optional — when omitted the run falls back to mode-based behavior
+     * (implicit `web_classics` pack). When provided, ids are validated
+     * against PACK_IDS and against `available: true` so unfinished packs
+     * can't be picked from the wizard.
+     */
+    packs: z
+      .array(z.enum(PACK_IDS as readonly [string, ...string[]]))
+      .min(1)
+      .optional(),
     hardCapCents: z.number().int().min(100).optional(),
     idempotencyKey: z.string().min(8).max(128).optional(),
   })
@@ -80,6 +93,17 @@ export const createRunInputSchema = z
       return true;
     },
     { message: 'Stack mode requires a repo or docker target.' },
+  )
+  .refine(
+    (v) => {
+      // Reject packs that are declared but not yet implemented end-to-end.
+      if (!v.packs) return true;
+      return v.packs.every((id) => PACKS[id as PackId]?.available);
+    },
+    {
+      message: 'One or more selected packs are not yet available. Pick a different pack.',
+      path: ['packs'],
+    },
   );
 
 export type CreateRunInput = z.infer<typeof createRunInputSchema>;
@@ -144,6 +168,7 @@ export async function createRun(opts: {
     createdByUserId: opts.userId,
     mode: opts.input.mode,
     name: opts.input.name,
+    packs: opts.input.packs ?? null,
     botCount: opts.input.botCount,
     durationMinutes: opts.input.durationMinutes,
     intentMix: opts.input.intentMix,

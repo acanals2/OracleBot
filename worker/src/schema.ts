@@ -104,6 +104,15 @@ export const findingCategoryEnum = pgEnum('finding_category', [
   'latency_cascade',
   'state_drift',
   'other',
+  // Phase 10 — added for AI-built / LLM / MCP probe packs.
+  'exposed_secret',
+  'missing_rls',
+  'client_key_leak',
+  'tool_poisoning',
+  'pii_echo',
+  'schema_violation',
+  'capability_escalation',
+  'credential_in_tool_desc',
 ]);
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -234,6 +243,13 @@ export const runs = pgTable(
     mode: runModeEnum('mode').notNull(),
     name: text('name').notNull(),
 
+    /**
+     * Probe pack ids selected for this run (Phase 10). Nullable for
+     * backward compatibility with mode-based runs created earlier.
+     * Mirror of platform/lib/db/schema.ts; keep in sync.
+     */
+    packs: jsonb('packs').$type<string[]>(),
+
     // Target — exactly one of these populated depending on connection method
     targetRepoUrl: text('target_repo_url'), // GitHub repo URL
     targetCommitSha: text('target_commit_sha'), // pinned commit at run time
@@ -320,6 +336,11 @@ export const runFindings = pgTable(
       .references(() => runs.id, { onDelete: 'cascade' }),
     severity: findingSeverityEnum('severity').notNull(),
     category: findingCategoryEnum('category').notNull(),
+    /**
+     * Probe id that produced this finding (Phase 10). Nullable for
+     * findings recorded before the probe registry existed.
+     */
+    probeId: text('probe_id'),
     title: text('title').notNull(),
     description: text('description').notNull(),
     /** Concrete reproduction steps + impacted file/endpoint/persona */

@@ -27,6 +27,12 @@ import { processSendEmail } from './processors/email.js';
 import { logger, newTraceId, withTrace } from './logger.js';
 import { startHealthServer } from './health.js';
 import { db, deadJobs } from './db.js';
+import { registerWebClassicsProbes } from './engine/probes/web-classics.js';
+
+// ── Probe registry boot ─────────────────────────────────────────────────────
+// Every pack registers its probes here at startup so the registry is populated
+// before any run picks one up. Idempotent — safe to call multiple times.
+registerWebClassicsProbes();
 
 logger.info({ event: 'worker.starting' }, 'worker starting');
 

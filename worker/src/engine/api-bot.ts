@@ -159,6 +159,7 @@ async function testMalformedInputs(
       state.findings.push({
         severity: 'high',
         category: 'malformed_input',
+        probeId: 'api_malformed_input_500',
         title: `HTTP ${result.status} on malformed input to ${endpoint.method} ${endpoint.path}`,
         description: `Sending malformed data to ${endpoint.method} ${endpoint.path} returned HTTP ${result.status}. APIs should return 400/422 with validation errors, never 500.`,
         reproJson: {
@@ -191,6 +192,7 @@ async function testAuthEnforcement(
     state.findings.push({
       severity: 'high',
       category: 'auth_gap',
+      probeId: 'api_unauthenticated_500',
       title: `Unauthenticated request to ${endpoint.path} returned HTTP ${noAuth.status}`,
       description: `${endpoint.method} ${endpoint.path} returned HTTP ${noAuth.status} when called without any credentials. Protected endpoints should return 401/403, never 500.`,
       reproJson: {
@@ -212,6 +214,7 @@ async function testAuthEnforcement(
       state.findings.push({
         severity: 'critical',
         category: 'auth_gap',
+        probeId: 'api_unauthenticated_500',
         title: `Potentially protected endpoint ${endpoint.path} accessible without authentication`,
         description: `${endpoint.method} ${endpoint.path} returned HTTP 200 without any credentials. If this endpoint handles user data, it represents an unauthenticated data access vulnerability.`,
         reproJson: {
@@ -259,6 +262,7 @@ async function testRateLimit(
     state.findings.push({
       severity: 'high',
       category: 'rate_limit_gap',
+      probeId: 'api_no_rate_limit',
       title: `No rate limiting on ${endpoint.method} ${endpoint.path} (${successCount}/${RATE_LIMIT_BURST} burst requests succeeded)`,
       description: `${RATE_LIMIT_BURST} requests to ${endpoint.method} ${endpoint.path} in ${Math.round(elapsed)}ms all returned success without any 429 throttling. Unprotected endpoints can be scraped, brute-forced, or used to exhaust downstream resources.`,
       reproJson: {
@@ -289,6 +293,7 @@ async function testCorsHeaders(
     state.findings.push({
       severity: 'critical',
       category: 'auth_gap',
+      probeId: 'api_cors_or_security_headers',
       title: 'Dangerous CORS: Access-Control-Allow-Origin: * with credentials=true',
       description: 'The API allows cross-origin requests from any origin while also allowing credentials. This combination is rejected by browsers but indicates a misconfiguration that can lead to CSRF or credential leakage if not immediately fixed.',
       reproJson: {
@@ -304,6 +309,7 @@ async function testCorsHeaders(
     state.findings.push({
       severity: 'low',
       category: 'integration_bug',
+      probeId: 'api_cors_or_security_headers',
       title: 'CORS wildcard: Access-Control-Allow-Origin: * on API endpoints',
       description: "The API returns Access-Control-Allow-Origin: * on all requests. This is acceptable for fully public read-only APIs but problematic if any endpoint handles authenticated data.",
       reproJson: {
