@@ -114,21 +114,34 @@
   const cache = { scan: null, probes: null };
 
   // --- Modal infrastructure -----------------------------------------
+  // We use the native <dialog> element when available (95%+ of browsers
+  // since Mar 2022), but fall back to a CSS-based "fake modal" via the
+  // .is-open class so the feature still works on legacy browsers and in
+  // file:// contexts where showModal() is restricted.
+  const supportsNativeDialog = !!(dlg && typeof dlg.showModal === 'function');
+
   function openModal(eyebrow, title) {
     if (!dlg) return false;
     dlgEyebrow.textContent = eyebrow || '';
     dlgTitle.textContent = title || '';
     dlgBody.innerHTML = '';
-    if (typeof dlg.showModal === 'function' && !dlg.open) dlg.showModal();
+    try {
+      if (supportsNativeDialog && !dlg.open) dlg.showModal();
+    } catch (_) {
+      // showModal can throw if the element is already showing or if the
+      // browser blocks it. Fall through to the CSS fallback.
+    }
+    // Always toggle the class — works for both native and fallback paths.
+    dlg.classList.add('is-open');
     document.body.classList.add('is-modal-open');
     return true;
   }
 
   function closeModal() {
     if (!dlg) return;
-    if (dlg.open) dlg.close();
+    try { if (dlg.open) dlg.close(); } catch (_) { /* same as above */ }
+    dlg.classList.remove('is-open');
     document.body.classList.remove('is-modal-open');
-    // Stop any running scan animation.
     if (currentScanCleanup) {
       currentScanCleanup();
       currentScanCleanup = null;
@@ -142,11 +155,17 @@
       if (e.target === dlg) closeModal();
     });
     dlg.addEventListener('close', () => {
+      dlg.classList.remove('is-open');
       document.body.classList.remove('is-modal-open');
       if (currentScanCleanup) {
         currentScanCleanup();
         currentScanCleanup = null;
       }
+    });
+    // ESC handler for the CSS-fallback path (native <dialog> handles ESC
+    // itself but our fallback needs explicit wiring).
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && dlg.classList.contains('is-open')) closeModal();
     });
   }
 

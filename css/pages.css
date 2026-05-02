@@ -988,6 +988,36 @@
   background: rgba(7, 8, 11, 0.78);
   backdrop-filter: blur(4px);
 }
+
+/* CSS fallback for browsers without <dialog> support OR for cases where
+   showModal() is blocked (e.g. file:// contexts). The .is-open class is
+   added by main.js whenever any modal-open trigger fires; if the native
+   path also worked, [open] is set and the rules below are redundant
+   (still safe). If the native path did NOT work, these rules are the
+   only thing making the modal visible. */
+.ob-modal.is-open:not([open]) {
+  display: block;
+  position: fixed;
+  z-index: 1000;
+  /* Recreate the backdrop manually since ::backdrop only works for
+     dialogs opened via showModal(). */
+  background: rgba(7, 8, 11, 0.78);
+  inset: 0;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0;
+}
+.ob-modal.is-open:not([open]) > .ob-modal__shell {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+}
+
 .ob-modal[open] { animation: ob-modal-in 0.18s var(--ease-out); }
 @media (prefers-reduced-motion: reduce) {
   .ob-modal[open] { animation: none; }
