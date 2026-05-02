@@ -114,20 +114,18 @@ const WEB_CLASSICS_PROBE_IDS = [
  * ai_built_apps — Phase 11. Targets output from Lovable / v0 / Bolt /
  * Cursor / Replit Agent. Many of these mirror failure patterns those
  * platforms generate by default.
+ *
+ * Pass A (shipping in Phase 11): the five read-only probes below.
+ * Pass B (follow-up): missing_rls_on_public_tables, firebase_rules_open,
+ * unvalidated_redirect, missing_csrf_protection, client_side_auth_only,
+ * missing_rate_limit_on_auth, dependency_with_known_cve.
  */
 const AI_BUILT_APPS_PROBE_IDS = [
-  'supabase_anon_key_exposed',
-  'missing_rls_on_public_tables',
   'hardcoded_secret_in_bundle',
-  'firebase_rules_open',
-  'unvalidated_redirect',
-  'missing_csrf_protection',
+  'supabase_anon_key_exposed',
   'default_error_page_leak',
-  'insecure_cors_on_api_routes',
-  'client_side_auth_only',
   'exposed_debug_endpoints',
-  'missing_rate_limit_on_auth',
-  'dependency_with_known_cve',
+  'insecure_cors_on_api_routes',
 ];
 
 /**
@@ -184,10 +182,10 @@ export const PACKS: Record<PackId, PackDefinition> = {
     id: 'ai_built_apps',
     label: 'AI-Built Apps',
     description:
-      'Failure modes specific to apps scaffolded by Lovable, v0, Bolt, Cursor, or Replit Agent — exposed Supabase keys, missing RLS, hardcoded secrets, client-only auth, and more.',
+      'Failure modes specific to apps scaffolded by Lovable, v0, Bolt, Cursor, or Replit Agent — exposed Supabase keys, hardcoded secrets, leaked stack traces on error, dev/debug endpoints in production, permissive CORS.',
     probeIds: AI_BUILT_APPS_PROBE_IDS,
     requiredEngines: new Set<ProbeEngine>(['site']),
-    available: false,
+    available: true,
   },
   llm_endpoints: {
     id: 'llm_endpoints',

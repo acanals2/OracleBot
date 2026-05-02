@@ -22,6 +22,8 @@
 import { chromium, type Browser, type Page } from 'playwright';
 import Anthropic from '@anthropic-ai/sdk';
 import type { EngineOpts, EngineEvent, BotTick, RawFinding } from './types.js';
+import { runAiBuiltAppsScan } from './probes/ai-built-apps.js';
+import { packsForLegacyMode, type PackId } from './packs.js';
 
 const TICK_INTERVAL_MS = 5_000;
 const MAX_CONCURRENT_BOTS = 5;
@@ -387,6 +389,16 @@ export async function* runSiteMode(opts: EngineOpts): AsyncGenerator<EngineEvent
   const { run, targetUrl, durationMs, anthropicApiKey } = opts;
   const anthropic = new Anthropic({ apiKey: anthropicApiKey });
 
+  // Phase 10: which probe packs the user selected. When `packs` is null/empty
+  // we treat the run as a legacy mode-based run and fall back to web_classics
+  // so existing scripts and integrations keep working unchanged.
+  const selectedPacks: PackId[] =
+    run.packs && run.packs.length > 0
+      ? (run.packs as PackId[])
+      : packsForLegacyMode('site');
+  const wantsWebClassics = selectedPacks.includes('web_classics');
+  const wantsAiBuiltApps = selectedPacks.includes('ai_built_apps');
+
   const botCount = Math.min(run.botCount, MAX_CONCURRENT_BOTS);
   const intentMix = run.intentMix ?? { adversarial: 0.6, friendly: 0.4 };
   const adversarialCount = Math.ceil(botCount * (intentMix.adversarial ?? 0.6));
@@ -399,6 +411,32 @@ export async function* runSiteMode(opts: EngineOpts): AsyncGenerator<EngineEvent
 
   let browser: Browser | null = null;
   const emittedFindingTitles = new Set<string>();
+
+  // Phase 11: ai_built_apps scan runs once per run (not per bot) — it's a
+  // small set of HTTP probes against the target, not a Playwright crawl.
+  // We yield its findings before the bot loop starts so users see them
+  // immediately on the live dashboard.
+  if (wantsAiBuiltApps) {
+    try {
+      for await (const finding of runAiBuiltAppsScan({ targetUrl })) {
+        if (!emittedFindingTitles.has(finding.title)) {
+          emittedFindingTitles.add(finding.title);
+          yield finding;
+        }
+      }
+    } catch {
+      // The scan is best-effort. Individual probe failures inside the
+      // module are already swallowed there; this catch is defense-in-depth.
+    }
+  }
+
+  // If only ai_built_apps was selected, skip the Playwright bot loop entirely.
+  if (!wantsWebClassics) {
+    // Emit a single tick so the live dashboard renders something for the
+    // run duration, then finish without launching the browser.
+    yield aggregateTick(state, 0, TICK_INTERVAL_MS);
+    return;
+  }
 
   try {
     browser = await chromium.launch({ headless: true });

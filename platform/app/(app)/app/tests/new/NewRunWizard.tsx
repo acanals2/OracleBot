@@ -23,6 +23,7 @@ import {
 import { AlertOctagon, ChevronRight, Globe, Layers, MessageSquare, Terminal } from 'lucide-react';
 import { PRODUCTS, formatPrice, estimateRunCostCents } from '@/lib/billing';
 import { VerificationStatusInline } from '@/components/run-wizard/VerificationStatusInline';
+import { PACK_LIST, type PackId, type ProbeEngine } from '@/data/packs';
 
 type Mode = 'site' | 'agent' | 'api' | 'stack';
 type TargetKind = 'repo' | 'docker' | 'liveUrl' | 'agent';
@@ -46,6 +47,14 @@ const TARGETS_BY_MODE: Record<Mode, TargetKind[]> = {
   agent: ['agent', 'repo'],
   api: ['liveUrl', 'repo', 'docker'],
   stack: ['repo', 'docker'],
+};
+
+/** Engines each mode runs — used to filter which extra packs are pickable. */
+const ENGINES_BY_MODE: Record<Mode, ReadonlySet<ProbeEngine>> = {
+  site: new Set(['site']),
+  agent: new Set(['agent']),
+  api: new Set(['api']),
+  stack: new Set(['site', 'agent', 'api']),
 };
 
 // Target kinds that require an E2B microVM sandbox. These are surfaced with
@@ -84,6 +93,26 @@ export function NewRunWizard() {
       setTarget({ kind: allowed[0], repoUrl: '', image: '', url: '', endpoint: '' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
+  // Phase 10/11: optional probe packs the user wants to run alongside the
+  // default web_classics set. Only packs whose required engines are a subset
+  // of the current mode's engines are eligible — e.g. `ai_built_apps` needs
+  // the site engine, so it shows up under site/stack modes but not agent/api.
+  const [selectedPacks, setSelectedPacks] = useState<Set<PackId>>(new Set());
+  // When the mode changes, drop any selected packs whose required engines
+  // are no longer satisfied. Keeps the wizard from submitting an invalid combo.
+  useEffect(() => {
+    const supported = ENGINES_BY_MODE[mode];
+    setSelectedPacks((prev) => {
+      const next = new Set<PackId>();
+      for (const id of prev) {
+        const pack = PACK_LIST.find((p) => p.id === id);
+        if (!pack) continue;
+        if ([...pack.requiredEngines].every((e) => supported.has(e))) next.add(id);
+      }
+      return next;
+    });
   }, [mode]);
   const [productKey, setProductKey] = useState<'free' | 'scout' | 'builder' | 'studio' | 'stack'>('free');
   const [hardCapDollars, setHardCapDollars] = useState<number>(50);
@@ -135,6 +164,15 @@ export function NewRunWizard() {
               ? { kind: 'liveUrl' as const, url: target.url ?? '' }
               : { kind: 'agent' as const, endpoint: target.endpoint ?? '' };
 
+      // Phase 10: every run includes web_classics by default; the wizard
+      // lets users opt-in to additional packs via the Step-0 pack list.
+      // We only send `packs` when at least one extra pack is selected so
+      // legacy mode-based runs keep working.
+      const packs: PackId[] | undefined =
+        selectedPacks.size > 0
+          ? ['web_classics', ...selectedPacks]
+          : undefined;
+
       const res = await fetch('/api/runs', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -145,6 +183,7 @@ export function NewRunWizard() {
           botCount,
           durationMinutes,
           target: targetPayload,
+          packs,
           hardCapCents: hardCapDollars * 100,
           idempotencyKey: crypto.randomUUID(),
         }),
@@ -216,6 +255,65 @@ export function NewRunWizard() {
                 </button>
               ))}
             </div>
+
+            {/* Phase 10/11 — optional probe packs */}
+            <div className="mt-8 border-t border-ob-line pt-6">
+              <p className="font-mono text-[10px] uppercase tracking-widest text-ob-dim">
+                Probe packs
+              </p>
+              <p className="mt-2 text-xs text-ob-muted">
+                Web Classics runs by default. Add specialty packs for AI-built apps,
+                LLM endpoints, or MCP servers when relevant.
+              </p>
+              <div className="mt-4 grid gap-2 md:grid-cols-2">
+                {PACK_LIST.filter((p) => p.id !== 'web_classics').map((pack) => {
+                  const supported = ENGINES_BY_MODE[mode];
+                  const compatible = [...pack.requiredEngines].every((e) => supported.has(e));
+                  const enabled = pack.available && compatible;
+                  const checked = selectedPacks.has(pack.id);
+                  return (
+                    <button
+                      key={pack.id}
+                      type="button"
+                      disabled={!enabled}
+                      onClick={() => {
+                        setSelectedPacks((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(pack.id)) next.delete(pack.id);
+                          else next.add(pack.id);
+                          return next;
+                        });
+                      }}
+                      className={`group rounded-xl border p-3 text-left transition-colors ${
+                        checked && enabled
+                          ? 'border-ob-signal/50 bg-ob-signal/5'
+                          : enabled
+                            ? 'border-ob-line bg-ob-surface/40 hover:border-ob-signal/30'
+                            : 'cursor-not-allowed border-ob-line/40 bg-ob-surface/20 opacity-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="font-mono text-sm text-ob-ink">{pack.label}</p>
+                        <span className="font-mono text-[10px] uppercase tracking-wider text-ob-dim">
+                          {!pack.available
+                            ? 'soon'
+                            : !compatible
+                              ? `${[...pack.requiredEngines].join('+')} only`
+                              : checked
+                                ? 'on'
+                                : 'off'}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-ob-muted">{pack.tagline}</p>
+                      <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-ob-dim">
+                        {pack.audience}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="mt-6 flex justify-end">
               <Button onClick={() => setStep(1)}>
                 Continue <ChevronRight className="h-4 w-4" />

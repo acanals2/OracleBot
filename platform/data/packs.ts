@@ -62,19 +62,14 @@ const WEB_CLASSICS_PROBE_IDS = [
   'api_cors_or_security_headers',
 ];
 
+// Pass A (shipped) — see worker/src/engine/probes/ai-built-apps.ts.
+// Pass B follow-ups (RLS, Firebase, CSRF, etc.) are tracked in PLAN.md.
 const AI_BUILT_APPS_PROBE_IDS = [
-  'supabase_anon_key_exposed',
-  'missing_rls_on_public_tables',
   'hardcoded_secret_in_bundle',
-  'firebase_rules_open',
-  'unvalidated_redirect',
-  'missing_csrf_protection',
+  'supabase_anon_key_exposed',
   'default_error_page_leak',
-  'insecure_cors_on_api_routes',
-  'client_side_auth_only',
   'exposed_debug_endpoints',
-  'missing_rate_limit_on_auth',
-  'dependency_with_known_cve',
+  'insecure_cors_on_api_routes',
 ];
 
 const LLM_ENDPOINTS_PROBE_IDS = [
@@ -123,10 +118,10 @@ export const PACKS: Record<PackId, PackDefinition> = {
     label: 'AI-Built Apps',
     tagline: 'Failure modes specific to AI-generated code.',
     description:
-      'Exposed Supabase anon keys, missing RLS, hardcoded secrets, client-only auth, open Firebase rules, and other patterns that AI coding agents ship by default.',
+      'Hardcoded secrets in client bundles, exposed Supabase anon keys, leaked stack traces on errors, dev/debug endpoints reachable in production, permissive CORS — patterns that AI coding agents ship by default.',
     probeIds: AI_BUILT_APPS_PROBE_IDS,
     requiredEngines: new Set<ProbeEngine>(['site']),
-    available: false,
+    available: true,
     icon: Sparkles,
     audience: 'Apps shipped via Lovable, v0, Bolt, Cursor, Replit Agent, Claude Code.',
   },
