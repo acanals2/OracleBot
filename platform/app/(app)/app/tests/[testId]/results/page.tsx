@@ -7,8 +7,12 @@ import { Button } from '@/components/ui/Button';
 import { Download, Share2 } from 'lucide-react';
 import { requireSession } from '@/lib/auth';
 import { getRunWithDetails } from '@/lib/runs';
+import { verificationIdForRun } from '@/lib/badge';
 import { RunSummaryCard } from '@/components/run/RunSummaryCard';
 import { FindingsList } from '@/components/run/FindingsList';
+import { PublishScoreCard } from '@/components/run/PublishScoreCard';
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 type Params = Promise<{ testId: string }>;
 
@@ -18,6 +22,21 @@ export default async function TestResultsPage({ params }: { params: Params }) {
   const detail = await getRunWithDetails(session.org.id, testId);
   if (!detail) notFound();
   const { run, findings } = detail;
+  // Phase 14: only fetch the verification id when the run actually completed
+  // with a real score — saves a query on in-flight or failed runs.
+  const verificationId =
+    run.status === 'completed' && run.readinessScore != null
+      ? await verificationIdForRun(run)
+      : null;
+  const targetHost = (() => {
+    const t = run.targetLiveUrl ?? run.targetAgentEndpoint;
+    if (!t) return null;
+    try {
+      return new URL(t).hostname;
+    } catch {
+      return null;
+    }
+  })();
 
   return (
     <div className="flex min-h-screen bg-ob-bg">
@@ -80,6 +99,15 @@ export default async function TestResultsPage({ params }: { params: Params }) {
           </div>
 
           <RunSummaryCard run={run} findings={findings} />
+
+          {run.status === 'completed' && run.readinessScore != null && (
+            <PublishScoreCard
+              verificationId={verificationId}
+              appUrl={APP_URL}
+              score={run.readinessScore}
+              targetHost={targetHost}
+            />
+          )}
 
           <FindingsList findings={findings} />
         </div>
