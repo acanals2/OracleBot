@@ -51,7 +51,9 @@ const CARVE_OUT_SUFFIXES: ReadonlyArray<string> = [
   '.vercel.app',
   '.railway.app',
   '.up.railway.app',
-  '.oraclebot.net',
+  // `.oraclebot.net` was previously carved out for marketing convenience but
+  // we want to dogfood our own scanner against our own apex domain. Verify
+  // properly via well-known file or DNS TXT instead.
 ];
 
 export function isCarveOut(domain: string): boolean {
