@@ -29,12 +29,14 @@ import { startHealthServer } from './health.js';
 import { db, deadJobs } from './db.js';
 import { registerWebClassicsProbes } from './engine/probes/web-classics.js';
 import { registerAiBuiltAppsProbes } from './engine/probes/ai-built-apps.js';
+import { registerLlmEndpointsProbes } from './engine/probes/llm-endpoints.js';
 
 // ── Probe registry boot ─────────────────────────────────────────────────────
 // Every pack registers its probes here at startup so the registry is populated
 // before any run picks one up. Idempotent — safe to call multiple times.
 registerWebClassicsProbes();
 registerAiBuiltAppsProbes();
+registerLlmEndpointsProbes();
 
 logger.info({ event: 'worker.starting' }, 'worker starting');
 

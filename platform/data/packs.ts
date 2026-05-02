@@ -77,17 +77,10 @@ const AI_BUILT_APPS_PROBE_IDS = [
   'client_side_auth_only',
 ];
 
+// Phase 13 starter — two probes shipped. Rest of the list tracked in PLAN.md.
 const LLM_ENDPOINTS_PROBE_IDS = [
   'system_prompt_extraction',
   'prompt_injection_via_user_content',
-  'pii_echo_in_response',
-  'jailbreak_bypass',
-  'hallucination_on_factual_query',
-  'missing_output_length_cap',
-  'no_rate_limit_on_llm_endpoint',
-  'cost_amplification_attack',
-  'unsafe_tool_call_execution',
-  'response_format_violation',
 ];
 
 const MCP_SERVER_PROBE_IDS = [
@@ -135,10 +128,10 @@ export const PACKS: Record<PackId, PackDefinition> = {
     label: 'LLM Endpoints',
     tagline: 'Adversarial probes for HTTP endpoints wrapping an LLM.',
     description:
-      'System-prompt extraction, prompt injection via user content, PII echo, cost amplification attacks, unsafe tool-call execution, and missing output-length caps.',
+      'System-prompt extraction and prompt injection via user content shipped today. PII echo, cost amplification, jailbreak, unsafe tool-call execution, and output-length-cap probes follow.',
     probeIds: LLM_ENDPOINTS_PROBE_IDS,
-    requiredEngines: new Set<ProbeEngine>(['agent', 'api']),
-    available: false,
+    requiredEngines: new Set<ProbeEngine>(['agent']),
+    available: true,
     icon: MessageSquare,
     audience: 'Anyone shipping a chatbot, RAG endpoint, or LLM-backed API.',
   },

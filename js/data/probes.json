@@ -51,10 +51,13 @@
       "id": "llm_endpoints",
       "label": "LLM Endpoints",
       "tagline": "Adversarial probes for HTTP endpoints wrapping an LLM.",
-      "description": "System-prompt extraction, prompt injection via user content, PII echo, cost amplification attacks, unsafe tool-call execution, and missing output-length caps.",
+      "description": "System-prompt extraction and prompt injection via user content shipped today. PII echo, cost amplification, jailbreak, unsafe tool-call execution, and output-length-cap probes follow.",
       "audience": "Anyone shipping a chatbot, RAG endpoint, or LLM-backed API.",
-      "shipped": false,
-      "probes": []
+      "shipped": true,
+      "probes": [
+        { "id": "system_prompt_extraction", "title": "System prompt leaked to extraction attempt", "severity": "critical", "description": "Sends a battery of well-known system-prompt extraction techniques (reflection, roleplay, encoding tricks, instruction override). Claude Haiku evaluates each response for content consistent with system instructions." },
+        { "id": "prompt_injection_via_user_content", "title": "Endpoint follows injected instruction inside user-content frame", "severity": "critical", "description": "Wraps a small set of injection payloads inside user-document-shaped messages (as if the agent were summarising a doc the user pasted). Flags responses that follow the injected instruction instead of the outer task." }
+      ]
     },
     {
       "id": "mcp_server",

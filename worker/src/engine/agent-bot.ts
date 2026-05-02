@@ -23,6 +23,8 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 import type { EngineOpts, EngineEvent, BotTick, RawFinding } from './types.js';
+import { packsForLegacyMode, type PackId } from './packs.js';
+import { runLlmEndpointsScan } from './probes/llm-endpoints.js';
 
 const TICK_INTERVAL_MS = 5_000;
 const AGENT_SLOW_THRESHOLD_MS = 10_000;
@@ -370,6 +372,15 @@ export async function* runAgentMode(opts: EngineOpts): AsyncGenerator<EngineEven
   const anthropic = new Anthropic({ apiKey: anthropicApiKey });
   const intentMix = run.intentMix ?? { hostile: 0.3, adversarial: 0.3, confused: 0.2, friendly: 0.2 };
 
+  // Phase 10/13: which probe packs the user selected. web_classics (the
+  // existing prompt-bank loop below) is the default; llm_endpoints is opt-in.
+  const selectedPacks: PackId[] =
+    run.packs && run.packs.length > 0
+      ? (run.packs as PackId[])
+      : packsForLegacyMode('agent');
+  const wantsWebClassics = selectedPacks.includes('web_classics');
+  const wantsLlmEndpoints = selectedPacks.includes('llm_endpoints');
+
   const state: AgentState = {
     activeBots: run.botCount,
     samples: [],
@@ -380,6 +391,30 @@ export async function* runAgentMode(opts: EngineOpts): AsyncGenerator<EngineEven
   const emittedFindingTitles = new Set<string>();
   const startTime = Date.now();
   const prompts = pickPrompts(intentMix as Record<string, number>);
+
+  // Phase 13: llm_endpoints scan runs once at the top, before the bot loop,
+  // so its findings stream to the live dashboard immediately.
+  if (wantsLlmEndpoints) {
+    try {
+      for await (const finding of runLlmEndpointsScan({
+        endpointUrl: targetUrl,
+        anthropicApiKey,
+      })) {
+        if (!emittedFindingTitles.has(finding.title)) {
+          emittedFindingTitles.add(finding.title);
+          yield finding;
+        }
+      }
+    } catch {
+      // Best-effort. Individual probe failures inside the module are already
+      // swallowed there; this catch is defense-in-depth.
+    }
+  }
+
+  // If only llm_endpoints was selected, skip the web_classics agent loop.
+  if (!wantsWebClassics) {
+    return;
+  }
 
   // Rate limit test runs once upfront
   await testRateLimit(targetUrl, state).catch(() => null);
