@@ -62,11 +62,12 @@ const WEB_CLASSICS_PROBE_IDS = [
   'api_cors_or_security_headers',
 ];
 
-// Pass A (shipped) — see worker/src/engine/probes/ai-built-apps.ts.
-// Pass B follow-ups (RLS, Firebase, CSRF, etc.) are tracked in PLAN.md.
+// Pass A + first Pass B probe shipped — see worker/src/engine/probes/ai-built-apps.ts.
+// Remaining Pass B follow-ups (Firebase, CSRF, etc.) are tracked in PLAN.md.
 const AI_BUILT_APPS_PROBE_IDS = [
   'hardcoded_secret_in_bundle',
   'supabase_anon_key_exposed',
+  'missing_rls_on_public_tables',
   'default_error_page_leak',
   'exposed_debug_endpoints',
   'insecure_cors_on_api_routes',

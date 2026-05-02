@@ -75,6 +75,16 @@ const PROBES: ProbeDefinition[] = [
     description:
       'Sends an OPTIONS preflight from a foreign origin to the discovered API base and flags wildcard `Access-Control-Allow-Origin: *` on endpoints that may handle user data.',
   },
+  {
+    id: 'missing_rls_on_public_tables',
+    pack: 'ai_built_apps',
+    engine: 'site',
+    category: 'missing_rls',
+    defaultSeverity: 'critical',
+    title: 'Public table readable without authentication via Supabase anon key',
+    description:
+      'When a Supabase anon key is found in the bundle, OracleBot fetches the project\'s PostgREST OpenAPI schema and attempts a single LIMIT-1 read against each exposed table. Tables that return rows have no Row Level Security gate — anyone visiting the site can read user data.',
+  },
 ];
 
 let registered = false;
@@ -125,7 +135,16 @@ export async function* runAiBuiltAppsScan(
   const bundles = await fetchBundles(scripts, signal, /* maxBundles */ 8);
 
   for await (const finding of probeHardcodedSecrets(bundles)) yield finding;
-  for await (const finding of probeSupabaseAnonKey(bundles)) yield finding;
+
+  // Discover Supabase credentials once and feed both Supabase probes from
+  // it — saves bundle scans and keeps the two findings in sync.
+  const supabase = discoverSupabaseCredentials(bundles);
+  if (supabase) {
+    for await (const finding of probeSupabaseAnonKey(supabase)) yield finding;
+    // 6. — RLS probe (Phase 11 Pass B). Skipped if no Supabase creds were
+    // found, so it costs nothing on non-Supabase apps.
+    for await (const finding of probeMissingRls(supabase, signal)) yield finding;
+  }
 
   // 3. — error page leak
   for await (const finding of probeDefaultErrorPage(target, signal)) yield finding;
@@ -269,51 +288,230 @@ function fingerprint(secret: string): string {
 const SUPABASE_URL_RE = /\bhttps:\/\/([a-z0-9-]+)\.supabase\.co\b/gi;
 const JWT_RE = /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}\b/g;
 
-async function* probeSupabaseAnonKey(
+interface SupabaseCredentials {
+  project: string;
+  jwt: string;
+  /** URL of the bundle the credentials were found in (for repro steps). */
+  foundIn: string;
+}
+
+/**
+ * Walk the bundles once and pick out the first Supabase project URL +
+ * adjacent JWT we find. Both Supabase probes (anon-key exposed and
+ * missing-RLS) read from this single discovery.
+ */
+function discoverSupabaseCredentials(
   bundles: BundleSnapshot[],
-): AsyncGenerator<RawFinding> {
-  const projects = new Set<string>();
-  let foundJwt: string | null = null;
+): SupabaseCredentials | null {
+  let project: string | null = null;
+  let jwt: string | null = null;
   let foundIn: string | null = null;
 
   for (const bundle of bundles) {
-    SUPABASE_URL_RE.lastIndex = 0;
-    let urlMatch: RegExpExecArray | null;
-    while ((urlMatch = SUPABASE_URL_RE.exec(bundle.body)) !== null) {
-      projects.add(urlMatch[1]);
-      foundIn = bundle.url;
+    if (!project) {
+      SUPABASE_URL_RE.lastIndex = 0;
+      const m = SUPABASE_URL_RE.exec(bundle.body);
+      if (m) {
+        project = m[1];
+        foundIn = bundle.url;
+      }
     }
-    if (!foundJwt) {
+    if (!jwt) {
       JWT_RE.lastIndex = 0;
-      const jwtMatch = JWT_RE.exec(bundle.body);
-      if (jwtMatch) foundJwt = jwtMatch[0];
+      const m = JWT_RE.exec(bundle.body);
+      if (m) jwt = m[0];
     }
+    if (project && jwt) break;
   }
 
-  if (projects.size === 0 || !foundJwt) return;
+  if (!project || !jwt || !foundIn) return null;
+  return { project, jwt, foundIn };
+}
 
-  const project = [...projects][0];
+async function* probeSupabaseAnonKey(
+  creds: SupabaseCredentials,
+): AsyncGenerator<RawFinding> {
   yield {
     severity: 'high',
     category: 'client_key_leak',
     probeId: 'supabase_anon_key_exposed',
-    title: `Supabase anon key shipped to the browser (project ${project})`,
+    title: `Supabase anon key shipped to the browser (project ${creds.project})`,
     description:
-      'A Supabase project URL and a JWT-shaped anon key were found in the client bundle. The anon key is intended to be public — its safety depends entirely on Row Level Security being correctly configured on every table the project exposes. Run the missing_rls_on_public_tables probe to confirm RLS is in place.',
+      'A Supabase project URL and a JWT-shaped anon key were found in the client bundle. The anon key is intended to be public — its safety depends entirely on Row Level Security being correctly configured on every table the project exposes. The missing_rls_on_public_tables probe runs next to confirm RLS is in place.',
     reproJson: {
       steps: [
-        `Open ${foundIn ?? '<bundle>'}`,
-        `Search for "${project}.supabase.co"`,
+        `Open ${creds.foundIn}`,
+        `Search for "${creds.project}.supabase.co"`,
         'Verify the adjacent JWT-shaped value is the anon key',
       ],
-      impactedPath: foundIn ?? undefined,
-      supabaseProject: project,
-      jwtFingerprint: fingerprint(foundJwt),
+      impactedPath: creds.foundIn,
+      supabaseProject: creds.project,
+      jwtFingerprint: fingerprint(creds.jwt),
     },
     remediation:
       'Confirm Row Level Security is enabled on every table the anon key can reach, and that policies match the access patterns your app intends. If RLS is off, the anon key alone is enough to read or write user data from any browser.',
   };
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Probe 6 — missing_rls_on_public_tables (Phase 11 Pass B)
+//
+// Reuses the Supabase credentials discovered above. PostgREST exposes
+// every Supabase project's schema at GET /rest/v1/ (with the anon key).
+// We pull the table list from that OpenAPI doc and attempt a LIMIT-1
+// SELECT against each. Only reads. We never POST / DELETE / mutate.
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Caps to keep a runaway schema from blowing up scan time. */
+const RLS_MAX_TABLES = 25;
+const RLS_TABLE_TIMEOUT_MS = 5_000;
+
+async function* probeMissingRls(
+  creds: SupabaseCredentials,
+  signal: AbortSignal | undefined,
+): AsyncGenerator<RawFinding> {
+  const base = `https://${creds.project}.supabase.co/rest/v1`;
+  const headers = {
+    apikey: creds.jwt,
+    Authorization: `Bearer ${creds.jwt}`,
+    Accept: 'application/openapi+json, application/json',
+  } as const;
+
+  // 1. Pull the OpenAPI schema. PostgREST returns it from the rest root.
+  let schema: unknown;
+  try {
+    const res = await safeFetch(`${base}/`, { signal, headers });
+    if (!res?.ok) return;
+    schema = await res.json();
+  } catch {
+    return;
+  }
+
+  const tables = extractTablesFromOpenApi(schema).slice(0, RLS_MAX_TABLES);
+  if (tables.length === 0) return;
+
+  // 2. For each table, attempt an unauthenticated read with the anon JWT.
+  // Read-only `GET ?limit=1`. Findings keyed by table; we never include
+  // row contents in the finding — only counts and column names.
+  const exposed: { table: string; rowCount: number; columnNames: string[] }[] = [];
+  const possiblyFiltered: string[] = [];
+
+  for (const table of tables) {
+    if (signal?.aborted) break;
+    try {
+      const res = await safeFetch(`${base}/${encodeURIComponent(table)}?limit=1`, {
+        signal,
+        headers: { ...headers, 'Range-Unit': 'items', Range: '0-0' },
+      });
+      if (!res) continue;
+      if (res.status === 401 || res.status === 403) continue; // RLS working
+      if (res.status >= 400) continue; // 404 / etc — table not exposed
+      const body = (await res.json().catch(() => null)) as unknown;
+      if (!Array.isArray(body)) continue;
+      if (body.length === 0) {
+        possiblyFiltered.push(table);
+        continue;
+      }
+      // Strip values; keep only column names so we never persist user data.
+      const first = body[0];
+      const columnNames =
+        first && typeof first === 'object' ? Object.keys(first as object) : [];
+      exposed.push({ table, rowCount: body.length, columnNames });
+    } catch {
+      // ignore individual failures
+    }
+  }
+
+  // 3. Emit findings. One critical-aggregate per project for tables that
+  // actually returned data; one info finding for tables that returned
+  // empty arrays (ambiguous — could be RLS filtering or genuinely empty).
+  if (exposed.length > 0) {
+    const tableNames = exposed.map((e) => e.table).slice(0, 8);
+    yield {
+      severity: 'critical',
+      category: 'missing_rls',
+      probeId: 'missing_rls_on_public_tables',
+      title: `Anonymous read access to ${exposed.length} Supabase table${exposed.length === 1 ? '' : 's'}`,
+      description: `Using the anon key from the client bundle, OracleBot was able to read rows from ${exposed.length} table${exposed.length === 1 ? '' : 's'} without any authentication. This means Row Level Security is either disabled or its policies allow anonymous access. Affected tables: ${tableNames.join(', ')}${exposed.length > 8 ? ` (+${exposed.length - 8} more)` : ''}.`,
+      reproJson: {
+        steps: [
+          `Extract anon key from ${creds.foundIn}`,
+          `Call GET ${base}/<table>?limit=1 with apikey: <key>`,
+          'Observe HTTP 200 + non-empty array',
+        ],
+        impactedPath: base,
+        supabaseProject: creds.project,
+        // Schema fingerprint only — we never persist row values.
+        exposedTables: exposed.map((e) => ({
+          table: e.table,
+          rowsReturned: e.rowCount,
+          columns: e.columnNames,
+        })),
+      },
+      remediation:
+        "Enable Row Level Security on every public table (`ALTER TABLE <name> ENABLE ROW LEVEL SECURITY;`) and add policies that match your intended access patterns. Run `select relname from pg_class where relrowsecurity = false and relkind = 'r';` in Supabase SQL Editor to find tables still missing RLS.",
+    };
+  }
+
+  if (possiblyFiltered.length > 0) {
+    // Lower severity — empty array is ambiguous (genuinely empty vs RLS-filtered).
+    yield {
+      severity: 'info',
+      category: 'missing_rls',
+      probeId: 'missing_rls_on_public_tables',
+      title: `${possiblyFiltered.length} Supabase table${possiblyFiltered.length === 1 ? '' : 's'} reachable but returned no rows`,
+      description: `These tables responded HTTP 200 to an anonymous query but returned an empty array. Either Row Level Security is filtering them (good) or the tables are simply empty. Worth a manual check: ${possiblyFiltered.slice(0, 8).join(', ')}${possiblyFiltered.length > 8 ? ` (+${possiblyFiltered.length - 8} more)` : ''}.`,
+      reproJson: {
+        steps: [
+          `Call GET ${base}/<table>?limit=1 with apikey: <key>`,
+          'Observe HTTP 200 + empty array',
+        ],
+        impactedPath: base,
+        supabaseProject: creds.project,
+        ambiguousTables: possiblyFiltered,
+      },
+      remediation:
+        'Insert a test row into each table and re-run OracleBot. If any table starts returning data anonymously, RLS is missing or misconfigured. If responses stay empty, RLS is working as intended.',
+    };
+  }
+}
+
+/**
+ * Pull table names out of a PostgREST OpenAPI document. Definitions live
+ * under `definitions` (Swagger 2) or `components.schemas` (OpenAPI 3); we
+ * accept either to be tolerant of PostgREST version differences.
+ */
+function extractTablesFromOpenApi(schema: unknown): string[] {
+  if (!schema || typeof schema !== 'object') return [];
+  const obj = schema as Record<string, unknown>;
+  const out = new Set<string>();
+  const v2 = obj.definitions;
+  if (v2 && typeof v2 === 'object') {
+    for (const name of Object.keys(v2 as Record<string, unknown>)) {
+      // Skip pseudo definitions PostgREST emits for RPC etc.
+      if (name && !name.startsWith('(') && !name.includes('.')) out.add(name);
+    }
+  }
+  const v3 = (obj.components as Record<string, unknown> | undefined)?.schemas;
+  if (v3 && typeof v3 === 'object') {
+    for (const name of Object.keys(v3 as Record<string, unknown>)) {
+      if (name && !name.startsWith('(') && !name.includes('.')) out.add(name);
+    }
+  }
+  // Final fallback: paths.
+  const paths = obj.paths;
+  if (paths && typeof paths === 'object') {
+    for (const p of Object.keys(paths as Record<string, unknown>)) {
+      const m = p.match(/^\/([^/{}]+)$/);
+      if (m && !m[1].startsWith('rpc')) out.add(m[1]);
+    }
+  }
+  return [...out];
+}
+
+// Re-bind RLS-specific timeout used by the safeFetch we already export.
+// Kept symbolic for future tuning without touching every call site.
+void RLS_TABLE_TIMEOUT_MS;
 
 // ────────────────────────────────────────────────────────────────────────────
 // Probe 3 — default_error_page_leak
