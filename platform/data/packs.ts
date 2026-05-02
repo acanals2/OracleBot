@@ -62,15 +62,19 @@ const WEB_CLASSICS_PROBE_IDS = [
   'api_cors_or_security_headers',
 ];
 
-// Pass A + first Pass B probe shipped — see worker/src/engine/probes/ai-built-apps.ts.
-// Remaining Pass B follow-ups (Firebase, CSRF, etc.) are tracked in PLAN.md.
+// Pass A + Pass B (4 probes) shipped — see worker/src/engine/probes/ai-built-apps.ts.
+// Lower-leverage follow-ups (CSRF, unvalidated_redirect, CVE) deferred to
+// after Phase 13.
 const AI_BUILT_APPS_PROBE_IDS = [
   'hardcoded_secret_in_bundle',
   'supabase_anon_key_exposed',
   'missing_rls_on_public_tables',
+  'firebase_rules_open',
   'default_error_page_leak',
   'exposed_debug_endpoints',
   'insecure_cors_on_api_routes',
+  'missing_rate_limit_on_auth',
+  'client_side_auth_only',
 ];
 
 const LLM_ENDPOINTS_PROBE_IDS = [

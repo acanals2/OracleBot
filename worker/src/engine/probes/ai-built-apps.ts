@@ -85,6 +85,36 @@ const PROBES: ProbeDefinition[] = [
     description:
       'When a Supabase anon key is found in the bundle, OracleBot fetches the project\'s PostgREST OpenAPI schema and attempts a single LIMIT-1 read against each exposed table. Tables that return rows have no Row Level Security gate — anyone visiting the site can read user data.',
   },
+  {
+    id: 'firebase_rules_open',
+    pack: 'ai_built_apps',
+    engine: 'site',
+    category: 'missing_rls',
+    defaultSeverity: 'critical',
+    title: 'Firestore / Realtime Database readable without authentication',
+    description:
+      'When a Firebase config (apiKey + projectId) is found in the bundle, OracleBot probes Firestore via REST for a small list of common collection names. Collections that return documents to anonymous reads have no security rules gate.',
+  },
+  {
+    id: 'missing_rate_limit_on_auth',
+    pack: 'ai_built_apps',
+    engine: 'site',
+    category: 'rate_limit_gap',
+    defaultSeverity: 'high',
+    title: 'No rate limit on auth endpoints',
+    description:
+      'Sends 30 concurrent POSTs to a small list of well-known auth paths (/api/auth/sign-in, /api/login, NextAuth credentials, etc.) with bogus credentials. If no 429s appear and most requests complete, the endpoint is brute-forceable.',
+  },
+  {
+    id: 'client_side_auth_only',
+    pack: 'ai_built_apps',
+    engine: 'site',
+    category: 'auth_gap',
+    defaultSeverity: 'high',
+    title: 'API route returns user-shaped data without authentication',
+    description:
+      'Pulls fetch() / axios calls to internal /api/* routes out of the bundle, then attempts each one without cookies. Routes that return user-shaped JSON anonymously are likely gated only by client-side conditional renders.',
+  },
 ];
 
 let registered = false;
@@ -141,9 +171,16 @@ export async function* runAiBuiltAppsScan(
   const supabase = discoverSupabaseCredentials(bundles);
   if (supabase) {
     for await (const finding of probeSupabaseAnonKey(supabase)) yield finding;
-    // 6. — RLS probe (Phase 11 Pass B). Skipped if no Supabase creds were
-    // found, so it costs nothing on non-Supabase apps.
+    // 6. — RLS probe. Skipped if no Supabase creds were found, so it costs
+    // nothing on non-Supabase apps.
     for await (const finding of probeMissingRls(supabase, signal)) yield finding;
+  }
+
+  // 7. — Firebase rules. Same shape as the Supabase probe — only fires if
+  // we find a Firebase config in the bundle.
+  const firebase = discoverFirebaseCredentials(bundles);
+  if (firebase) {
+    for await (const finding of probeFirebaseRulesOpen(firebase, signal)) yield finding;
   }
 
   // 3. — error page leak
@@ -151,6 +188,12 @@ export async function* runAiBuiltAppsScan(
 
   // 4. — debug endpoints
   for await (const finding of probeExposedDebugEndpoints(target, signal)) yield finding;
+
+  // 8. — auth rate limit. Independent of bundle contents.
+  for await (const finding of probeMissingRateLimitOnAuth(target, signal)) yield finding;
+
+  // 9. — client-side-only auth. Reuses bundle list to find /api/* refs.
+  for await (const finding of probeClientSideAuthOnly(target, bundles, signal)) yield finding;
 
   // 5. — CORS on API routes
   for await (const finding of probeInsecureCors(target, signal)) yield finding;
@@ -512,6 +555,325 @@ function extractTablesFromOpenApi(schema: unknown): string[] {
 // Re-bind RLS-specific timeout used by the safeFetch we already export.
 // Kept symbolic for future tuning without touching every call site.
 void RLS_TABLE_TIMEOUT_MS;
+
+// ────────────────────────────────────────────────────────────────────────────
+// Probe 7 — firebase_rules_open
+//
+// Same shape as the Supabase RLS probe but for Firebase. Pulls the project's
+// apiKey + projectId out of the bundle and probes Firestore via REST for a
+// small list of well-known collection names. Read-only; only GETs.
+// ────────────────────────────────────────────────────────────────────────────
+
+interface FirebaseCredentials {
+  apiKey: string;
+  projectId: string;
+  foundIn: string;
+}
+
+// AIza* keys + projectId follow Google's published format. Either of these
+// formats can appear in the bundle: a literal config object, or a JSON-stringified
+// initializeApp call. We accept both and require BOTH apiKey and projectId
+// before treating the discovery as positive.
+const FIREBASE_API_KEY_RE = /\b(AIza[0-9A-Za-z_-]{35})\b/g;
+const FIREBASE_PROJECT_ID_RE = /["']?projectId["']?\s*[:=]\s*["']([a-z][a-z0-9-]{4,29})["']/g;
+
+const FIREBASE_PROBE_COLLECTIONS = [
+  'users',
+  'accounts',
+  'profiles',
+  'posts',
+  'messages',
+  'orders',
+  'invoices',
+  'documents',
+  'files',
+  'sessions',
+];
+
+function discoverFirebaseCredentials(
+  bundles: BundleSnapshot[],
+): FirebaseCredentials | null {
+  let apiKey: string | null = null;
+  let projectId: string | null = null;
+  let foundIn: string | null = null;
+
+  for (const bundle of bundles) {
+    if (!apiKey) {
+      FIREBASE_API_KEY_RE.lastIndex = 0;
+      const m = FIREBASE_API_KEY_RE.exec(bundle.body);
+      if (m) {
+        apiKey = m[1];
+        foundIn = bundle.url;
+      }
+    }
+    if (!projectId) {
+      FIREBASE_PROJECT_ID_RE.lastIndex = 0;
+      const m = FIREBASE_PROJECT_ID_RE.exec(bundle.body);
+      if (m) projectId = m[1];
+    }
+    if (apiKey && projectId) break;
+  }
+
+  if (!apiKey || !projectId || !foundIn) return null;
+  return { apiKey, projectId, foundIn };
+}
+
+async function* probeFirebaseRulesOpen(
+  creds: FirebaseCredentials,
+  signal: AbortSignal | undefined,
+): AsyncGenerator<RawFinding> {
+  const base = `https://firestore.googleapis.com/v1/projects/${creds.projectId}/databases/(default)/documents`;
+  const exposed: { collection: string; documentCount: number }[] = [];
+
+  for (const collection of FIREBASE_PROBE_COLLECTIONS) {
+    if (signal?.aborted) break;
+    try {
+      const url = `${base}/${encodeURIComponent(collection)}?pageSize=1&key=${encodeURIComponent(creds.apiKey)}`;
+      const res = await safeFetch(url, { signal });
+      if (!res) continue;
+      // 401 / 403 / 404 → rules working OR collection doesn't exist
+      if (res.status >= 400) continue;
+      const body = (await res.json().catch(() => null)) as { documents?: unknown[] } | null;
+      if (!body || !Array.isArray(body.documents)) continue;
+      if (body.documents.length === 0) continue;
+      exposed.push({ collection, documentCount: body.documents.length });
+    } catch {
+      // ignore individual collection errors
+    }
+  }
+
+  if (exposed.length === 0) return;
+
+  yield {
+    severity: 'critical',
+    category: 'missing_rls',
+    probeId: 'firebase_rules_open',
+    title: `Anonymous read access to ${exposed.length} Firestore collection${exposed.length === 1 ? '' : 's'}`,
+    description: `Using the Firebase API key from the client bundle, OracleBot read documents from ${exposed.length} collection${exposed.length === 1 ? '' : 's'} without authentication. Firebase security rules are missing or permissive — anyone visiting the site can read this data.`,
+    reproJson: {
+      steps: [
+        `Extract API key from ${creds.foundIn}`,
+        `GET ${base}/<collection>?pageSize=1&key=<apiKey>`,
+        'Observe HTTP 200 with non-empty `documents` array',
+      ],
+      impactedPath: base,
+      firebaseProject: creds.projectId,
+      exposedCollections: exposed,
+    },
+    remediation:
+      "In firestore.rules, restrict reads to authenticated users at minimum: `match /{document=**} { allow read, write: if request.auth != null; }`. Tighten further per-collection. Same applies to Realtime Database and Storage rules.",
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Probe 8 — missing_rate_limit_on_auth
+//
+// Bursts 30 concurrent POSTs against well-known auth paths with bogus
+// credentials. We expect either a 429 (good) or a steady stream of 401/422
+// (acceptable but worth flagging if no 429s appear at all). The presence
+// of 200 responses is suspect on any of these — flagged separately by the
+// existing api_unauthenticated_500 probe.
+// ────────────────────────────────────────────────────────────────────────────
+
+const AUTH_PATHS = [
+  '/api/auth/sign-in',
+  '/api/auth/signin',
+  '/api/auth/login',
+  '/api/login',
+  '/api/sign-in',
+  '/api/auth/callback/credentials',
+];
+
+const AUTH_BURST_SIZE = 30;
+const AUTH_BURST_WINDOW_MS = 5_000;
+
+async function* probeMissingRateLimitOnAuth(
+  target: URL,
+  signal: AbortSignal | undefined,
+): AsyncGenerator<RawFinding> {
+  // Step 1 — discover which path actually exists. POSTing 30 times to every
+  // candidate would be wasteful; we send one OPTIONS / HEAD probe first and
+  // burst the first path that responds to a known-bad POST with anything
+  // other than 404.
+  let path: string | null = null;
+  for (const candidate of AUTH_PATHS) {
+    if (signal?.aborted) return;
+    try {
+      const url = new URL(candidate, target).toString();
+      const res = await safeFetch(url, {
+        signal,
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: 'oraclebot-probe@invalid', password: 'oraclebot-probe' }),
+      });
+      if (!res) continue;
+      if (res.status !== 404) {
+        path = candidate;
+        break;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  if (!path) return;
+
+  // Step 2 — burst.
+  const url = new URL(path, target).toString();
+  const start = Date.now();
+  const results = await Promise.allSettled(
+    Array.from({ length: AUTH_BURST_SIZE }, () =>
+      safeFetch(url, {
+        signal,
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: `oraclebot-probe-${Math.random().toString(36).slice(2, 8)}@invalid`,
+          password: 'oraclebot-probe',
+        }),
+      }),
+    ),
+  );
+  const elapsed = Date.now() - start;
+  const statuses = results
+    .map((r) => (r.status === 'fulfilled' && r.value ? r.value.status : 0))
+    .filter((s) => s > 0);
+  if (statuses.length === 0) return;
+
+  const has429 = statuses.includes(429);
+  const accepted = statuses.filter((s) => s < 500 && s !== 429).length;
+  if (has429) return; // good — real rate limit in place
+  if (accepted < AUTH_BURST_SIZE * 0.7) return; // server gave up before us — not a clean signal
+
+  yield {
+    severity: 'high',
+    category: 'rate_limit_gap',
+    probeId: 'missing_rate_limit_on_auth',
+    title: `No rate limit on ${path} (${accepted}/${AUTH_BURST_SIZE} requests in ${Math.round(elapsed)}ms)`,
+    description: `${AUTH_BURST_SIZE} concurrent login attempts with bogus credentials produced ${accepted} non-rate-limited responses in ${Math.round(elapsed)}ms. No 429s were returned. The endpoint is brute-forceable — an attacker can enumerate emails or guess passwords without throttle.`,
+    reproJson: {
+      steps: [
+        `Send ${AUTH_BURST_SIZE} concurrent POSTs to ${url} with random bogus credentials`,
+        `Observe ${accepted} non-429 responses in ${Math.round(elapsed)}ms`,
+      ],
+      impactedPath: path,
+      statusCounts: countBy(statuses),
+    },
+    remediation:
+      'Add per-IP and per-email rate limiting to auth endpoints (e.g. `@upstash/ratelimit` for Next.js, `express-rate-limit` for Express). Return 429 with `Retry-After`. Couple with CAPTCHA on repeated failures.',
+  };
+  // Mark elapsed as referenced for budget tuning later.
+  void AUTH_BURST_WINDOW_MS;
+}
+
+function countBy(items: number[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const i of items) out[String(i)] = (out[String(i)] ?? 0) + 1;
+  return out;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Probe 9 — client_side_auth_only
+//
+// Many AI-codegen apps protect routes by conditionally rendering them in
+// the client (e.g. `if (!user) return <SignIn />`) but never guard the
+// underlying API with server-side middleware. We pull internal /api/*
+// route references out of the bundle and call each one without cookies.
+// Routes that respond 200 with user-shaped JSON are flagged.
+// ────────────────────────────────────────────────────────────────────────────
+
+const API_ROUTE_RE = /["'`]\/api\/[a-zA-Z0-9_./-]+["'`]/g;
+const CLIENT_AUTH_MAX_ROUTES = 12;
+
+// Heuristic: a JSON body that looks like it contains user-specific data
+// based on common field names. Imperfect but conservative.
+const USER_SHAPED_FIELDS = ['email', 'userId', 'id', 'username', 'profile', 'sessionId', 'role', 'createdAt'];
+
+async function* probeClientSideAuthOnly(
+  target: URL,
+  bundles: BundleSnapshot[],
+  signal: AbortSignal | undefined,
+): AsyncGenerator<RawFinding> {
+  // Extract unique /api/* paths from all bundles.
+  const paths = new Set<string>();
+  for (const bundle of bundles) {
+    API_ROUTE_RE.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = API_ROUTE_RE.exec(bundle.body)) !== null) {
+      const raw = m[0].slice(1, -1); // strip quote
+      // Skip auth paths (already covered by probes 8 + api_unauthenticated_500)
+      // and OracleBot's own paths if scanning ourselves.
+      if (raw.includes('/auth/') || raw.startsWith('/api/auth')) continue;
+      if (raw.includes('/badge/') || raw.includes('/score/')) continue;
+      // Strip dynamic segments like /api/users/${id} that won't resolve.
+      if (raw.includes('${') || raw.includes('+ ')) continue;
+      paths.add(raw);
+    }
+  }
+
+  const candidates = [...paths].slice(0, CLIENT_AUTH_MAX_ROUTES);
+  if (candidates.length === 0) return;
+
+  const exposed: { path: string; fields: string[] }[] = [];
+
+  for (const path of candidates) {
+    if (signal?.aborted) break;
+    try {
+      const url = new URL(path, target).toString();
+      const res = await safeFetch(url, { signal });
+      if (!res) continue;
+      // Anything other than 200 means the server is at least gating it.
+      if (res.status !== 200) continue;
+      const ct = res.headers.get('content-type') ?? '';
+      if (!ct.includes('json')) continue;
+      const body = (await res.json().catch(() => null)) as unknown;
+      const fields = userShapedFields(body);
+      if (fields.length === 0) continue;
+      exposed.push({ path, fields });
+    } catch {
+      // ignore
+    }
+  }
+
+  if (exposed.length === 0) return;
+
+  yield {
+    severity: 'high',
+    category: 'auth_gap',
+    probeId: 'client_side_auth_only',
+    title: `${exposed.length} API route${exposed.length === 1 ? '' : 's'} return user-shaped data without authentication`,
+    description: `OracleBot extracted /api/* references from the client bundle, then called each one without any cookies or authorization headers. ${exposed.length} route${exposed.length === 1 ? '' : 's'} returned 200 with JSON containing user-shaped fields (${[...new Set(exposed.flatMap((e) => e.fields))].slice(0, 5).join(', ')}). The auth gate may be client-side only — easily bypassed with curl.`,
+    reproJson: {
+      steps: [
+        'Extract /api/* references from the client bundle',
+        `GET <each route> with no cookies / no Authorization header`,
+        'Observe 200 + user-shaped JSON',
+      ],
+      impactedPath: exposed.map((e) => e.path).join(', '),
+      exposedRoutes: exposed,
+    },
+    remediation:
+      'Add server-side auth middleware that runs BEFORE the route handler returns data. In Next.js: protect the API route handler with `getServerSession()` + early-return 401. In Express: add an `authRequired` middleware on the router. Never rely on client-side conditional rendering as the security boundary.',
+  };
+}
+
+function userShapedFields(body: unknown): string[] {
+  const seen: string[] = [];
+  function visit(v: unknown, depth: number) {
+    if (depth > 3 || seen.length > 8) return;
+    if (Array.isArray(v)) {
+      for (const item of v.slice(0, 3)) visit(item, depth + 1);
+      return;
+    }
+    if (v && typeof v === 'object') {
+      for (const key of Object.keys(v as object)) {
+        if (USER_SHAPED_FIELDS.includes(key) && !seen.includes(key)) seen.push(key);
+        visit((v as Record<string, unknown>)[key], depth + 1);
+      }
+    }
+  }
+  visit(body, 0);
+  return seen;
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Probe 3 — default_error_page_leak

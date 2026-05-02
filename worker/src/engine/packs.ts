@@ -115,20 +115,23 @@ const WEB_CLASSICS_PROBE_IDS = [
  * Cursor / Replit Agent. Many of these mirror failure patterns those
  * platforms generate by default.
  *
- * Pass A (shipped): five read-only probes — secrets, supabase key,
- * error-page leak, debug endpoints, CORS.
- * Pass B (in progress): missing_rls_on_public_tables (live).
- * Pass B (remaining): firebase_rules_open, unvalidated_redirect,
- * missing_csrf_protection, client_side_auth_only, missing_rate_limit_on_auth,
- * dependency_with_known_cve.
+ * Shipped:
+ *   Pass A — secrets, supabase key, error-page leak, debug endpoints, CORS
+ *   Pass B — RLS, Firebase rules, auth rate limit, client-side-only auth
+ *
+ * Pass B remaining (lower leverage; revisit after Phase 13):
+ *   unvalidated_redirect, missing_csrf_protection, dependency_with_known_cve
  */
 const AI_BUILT_APPS_PROBE_IDS = [
   'hardcoded_secret_in_bundle',
   'supabase_anon_key_exposed',
   'missing_rls_on_public_tables',
+  'firebase_rules_open',
   'default_error_page_leak',
   'exposed_debug_endpoints',
   'insecure_cors_on_api_routes',
+  'missing_rate_limit_on_auth',
+  'client_side_auth_only',
 ];
 
 /**
