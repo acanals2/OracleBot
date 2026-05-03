@@ -1,4 +1,22 @@
-# GTM — first concierge engagements
+# GTM — go-to-market materials
+
+Two playbooks live here, for two different motions:
+
+1. **[2026-05-design-partners/](2026-05-design-partners/)** — current focus.
+   Free design-partner motion targeting solo founders / funded startups /
+   agencies shipping AI-codegen apps (Lovable, v0, Bolt, Cursor, Claude
+   Code, Replit Agent). Goal: 2 signed DPs in 30 days, then iterate
+   the product on their feedback.
+2. **Concierge engagements (this file, below)** — original $25k / $50k
+   offering for fintech / trading ICPs. Still valid for inbound demand
+   from that vertical, but not the active outbound motion.
+
+When in doubt, work the design-partner playbook. Concierge revenue comes
+later, after the SaaS product has its first 5 customers.
+
+---
+
+## Concierge engagements (legacy / inbound only)
 
 Operational kit for landing **3–5 paid engagements** with a **$25k Standard** default for fintech / trading ICPs.
 
