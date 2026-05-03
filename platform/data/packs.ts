@@ -92,11 +92,18 @@ const LLM_ENDPOINTS_PROBE_IDS = [
   'response_format_violation',
 ];
 
-// Phase 13b starter — three probes shipped. Rest of the pack tracked in PLAN.md.
+// Full catalog (10/10) — Phase 13b + 13e.
 const MCP_SERVER_PROBE_IDS = [
   'missing_auth_on_mcp_transport',
   'credential_leak_in_tool_desc',
   'tool_description_injection',
+  'tool_name_collision',
+  'tool_invocation_without_confirmation',
+  'schema_violation_on_tool_input',
+  'logging_sensitive_data',
+  'unbounded_resource_list',
+  'cross_resource_access',
+  'capability_escalation_via_sampling',
 ];
 
 const AGENT_RUNTIME_PROBE_IDS: string[] = [];

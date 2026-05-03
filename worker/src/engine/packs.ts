@@ -156,18 +156,19 @@ const LLM_ENDPOINTS_PROBE_IDS = [
 /**
  * mcp_server — Phase 13. Targets MCP server endpoints. HTTP/SSE only;
  * stdio transport is out of scope until Phase 20+.
- *
- * Shipped (this commit): missing_auth_on_mcp_transport,
- *   credential_leak_in_tool_desc, tool_description_injection.
- * Pending: tool_name_collision, unbounded_resource_list,
- *   tool_invocation_without_confirmation, cross_resource_access,
- *   schema_violation_on_tool_input, capability_escalation_via_sampling,
- *   logging_sensitive_data.
+ * Full catalog (10/10) shipped.
  */
 const MCP_SERVER_PROBE_IDS = [
   'missing_auth_on_mcp_transport',
   'credential_leak_in_tool_desc',
   'tool_description_injection',
+  'tool_name_collision',
+  'tool_invocation_without_confirmation',
+  'schema_violation_on_tool_input',
+  'logging_sensitive_data',
+  'unbounded_resource_list',
+  'cross_resource_access',
+  'capability_escalation_via_sampling',
 ];
 
 /**
