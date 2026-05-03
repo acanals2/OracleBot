@@ -9,6 +9,8 @@ import { ArrowRight, Play } from 'lucide-react';
 import { requireSession } from '@/lib/auth';
 import { listRunsForOrg } from '@/lib/runs';
 import { getDashboardStats } from '@/lib/dashboard-stats';
+import { PackDistribution } from '@/components/dashboard/PackDistribution';
+import { ScoreOverTime } from '@/components/dashboard/ScoreOverTime';
 
 function statusVariant(s: string): 'default' | 'signal' | 'warn' | 'muted' {
   if (s === 'completed') return 'signal';
@@ -68,6 +70,14 @@ export default async function DashboardHomePage() {
               hint={stats?.criticalFindings ? `${stats.criticalFindings} critical` : 'None critical'}
             />
           </div>
+
+          {(stats?.scoreSeries.length ?? 0) > 0 && (
+            <ScoreOverTime series={stats!.scoreSeries} />
+          )}
+
+          {(stats?.packDistribution.length ?? 0) > 0 && (
+            <PackDistribution slices={stats!.packDistribution} />
+          )}
 
           <Card>
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4">
