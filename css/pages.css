@@ -1375,8 +1375,18 @@ body.is-modal-open { overflow: hidden; }
 .hero__copy--centered { text-align: center; max-width: 720px; margin: 0 auto; }
 .hero__copy--centered .hero__ctas { justify-content: center; }
 
-.pack-section { margin-top: 64px; }
+.pack-section {
+  margin-top: 64px;
+  /* Pack quick-nav is sticky (~72px tall with padding); offset anchor
+     jumps so the section heading lands below the chip row, not under it. */
+  scroll-margin-top: 88px;
+}
 .pack-section:first-child { margin-top: 0; }
+/* Smooth scroll for the catalogue page only — keeps in-app jumps snappy. */
+html:has(.pack-nav) { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html:has(.pack-nav) { scroll-behavior: auto; }
+}
 .pack-section__head { margin-bottom: 8px; }
 .pack-section__audience {
   margin-top: 12px;
@@ -1450,7 +1460,12 @@ body.is-modal-open { overflow: hidden; }
 /* Per-probe permalink (#) appears on hover; fixed position keeps the card
    layout stable. Uses tabindex=-1 implicitly because it's still keyboard
    reachable via the parent button. */
-.probe-card { position: relative; }
+.probe-card {
+  position: relative;
+  /* Match .pack-section so #probe-<id> hash navigation lands the card
+     below the sticky pack-nav chip row. */
+  scroll-margin-top: 96px;
+}
 .probe-card__permalink {
   position: absolute;
   top: 12px;
