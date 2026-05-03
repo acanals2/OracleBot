@@ -24,6 +24,7 @@ import { AlertOctagon, ChevronRight, Globe, Layers, MessageSquare, Terminal } fr
 import { PRODUCTS, formatPrice, estimateRunCostCents } from '@/lib/billing';
 import { VerificationStatusInline } from '@/components/run-wizard/VerificationStatusInline';
 import { PACK_LIST, type PackId, type ProbeEngine } from '@/data/packs';
+import { probesForPack } from '@/data/probe-manifest';
 
 type Mode = 'site' | 'agent' | 'api' | 'stack';
 type TargetKind = 'repo' | 'docker' | 'liveUrl' | 'agent';
@@ -271,44 +272,77 @@ export function NewRunWizard() {
                   const compatible = [...pack.requiredEngines].every((e) => supported.has(e));
                   const enabled = pack.available && compatible;
                   const checked = selectedPacks.has(pack.id);
+                  const probes = probesForPack(pack.id);
+                  const togglePack = () => {
+                    if (!enabled) return;
+                    setSelectedPacks((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(pack.id)) next.delete(pack.id);
+                      else next.add(pack.id);
+                      return next;
+                    });
+                  };
                   return (
-                    <button
+                    <div
                       key={pack.id}
-                      type="button"
-                      disabled={!enabled}
-                      onClick={() => {
-                        setSelectedPacks((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(pack.id)) next.delete(pack.id);
-                          else next.add(pack.id);
-                          return next;
-                        });
-                      }}
-                      className={`group rounded-xl border p-3 text-left transition-colors ${
+                      className={`group rounded-xl border transition-colors ${
                         checked && enabled
                           ? 'border-ob-signal/50 bg-ob-signal/5'
                           : enabled
                             ? 'border-ob-line bg-ob-surface/40 hover:border-ob-signal/30'
-                            : 'cursor-not-allowed border-ob-line/40 bg-ob-surface/20 opacity-50'
+                            : 'border-ob-line/40 bg-ob-surface/20 opacity-50'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <p className="font-mono text-sm text-ob-ink">{pack.label}</p>
-                        <span className="font-mono text-[10px] uppercase tracking-wider text-ob-dim">
-                          {!pack.available
-                            ? 'soon'
-                            : !compatible
-                              ? `${[...pack.requiredEngines].join('+')} only`
-                              : checked
-                                ? 'on'
-                                : 'off'}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs text-ob-muted">{pack.tagline}</p>
-                      <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-ob-dim">
-                        {pack.audience}
-                      </p>
-                    </button>
+                      <button
+                        type="button"
+                        disabled={!enabled}
+                        onClick={togglePack}
+                        className="block w-full p-3 text-left disabled:cursor-not-allowed"
+                        aria-pressed={checked}
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="font-mono text-sm text-ob-ink">{pack.label}</p>
+                          <span className="font-mono text-[10px] uppercase tracking-wider text-ob-dim">
+                            {!pack.available
+                              ? 'soon'
+                              : !compatible
+                                ? `${[...pack.requiredEngines].join('+')} only`
+                                : checked
+                                  ? 'on'
+                                  : 'off'}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-ob-muted">{pack.tagline}</p>
+                        <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-ob-dim">
+                          {pack.audience}
+                        </p>
+                      </button>
+                      {probes.length > 0 && (
+                        <details className="border-t border-ob-line/40">
+                          <summary className="cursor-pointer px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-ob-dim hover:text-ob-ink">
+                            {probes.length} probe{probes.length === 1 ? '' : 's'} ↓
+                          </summary>
+                          <ul className="space-y-1 px-3 pb-3 text-xs">
+                            {probes.map((probe) => (
+                              <li key={probe.id} className="flex items-start gap-2">
+                                <span
+                                  className={`mt-0.5 inline-block rounded border px-1 py-0 font-mono text-[9px] uppercase tracking-wider ${
+                                    probe.severity === 'critical'
+                                      ? 'border-ob-danger/40 bg-ob-danger/10 text-ob-danger'
+                                      : probe.severity === 'high'
+                                        ? 'border-ob-warn/40 bg-ob-warn/10 text-ob-warn'
+                                        : 'border-ob-line text-ob-muted'
+                                  }`}
+                                >
+                                  {probe.severity}
+                                </span>
+                                <span className="text-ob-muted">{probe.title}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                    </div>
                   );
                 })}
               </div>

@@ -9,11 +9,17 @@ import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import type { RunFinding } from '@/lib/db/schema';
-import { packForProbe } from '@/data/packs';
+import { packForProbe, PACKS, type PackId } from '@/data/packs';
 
 type Severity = RunFinding['severity'];
 
 const SEVERITY_ORDER: Severity[] = ['critical', 'high', 'medium', 'low', 'info'];
+
+/** Resolve a finding's pack id from its probe id; null when unknown. */
+function packIdFor(f: RunFinding): PackId | null {
+  if (!f.probeId) return null;
+  return packForProbe(f.probeId)?.id ?? null;
+}
 
 const SEVERITY_STYLES: Record<Severity, string> = {
   critical: 'border-ob-danger/40 bg-ob-danger/10 text-ob-danger',
@@ -30,17 +36,36 @@ export function FindingsList({ findings }: { findings: RunFinding[] }) {
   const [activeSeverities, setActiveSeverities] = useState<Set<Severity>>(
     () => new Set(SEVERITY_ORDER),
   );
+  const [activePacks, setActivePacks] = useState<Set<string>>(
+    // 'unknown' is a synthetic key for findings whose probeId we can't resolve
+    // (legacy rows + findings emitted before Phase 10b probe tagging).
+    () => new Set([...Object.keys(PACKS), 'unknown']),
+  );
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const counts = useMemo(() => {
+  const severityCounts = useMemo(() => {
     const c: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
     for (const f of findings) c[f.severity] += 1;
     return c;
   }, [findings]);
 
+  const packCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const f of findings) {
+      const id = packIdFor(f) ?? 'unknown';
+      c[id] = (c[id] ?? 0) + 1;
+    }
+    return c;
+  }, [findings]);
+
   const visible = useMemo(
-    () => findings.filter((f) => activeSeverities.has(f.severity)),
-    [findings, activeSeverities],
+    () =>
+      findings.filter((f) => {
+        if (!activeSeverities.has(f.severity)) return false;
+        const pid = packIdFor(f) ?? 'unknown';
+        return activePacks.has(pid);
+      }),
+    [findings, activeSeverities, activePacks],
   );
 
   const toggleSeverity = (sev: Severity) => {
@@ -48,6 +73,15 @@ export function FindingsList({ findings }: { findings: RunFinding[] }) {
       const next = new Set(prev);
       if (next.has(sev)) next.delete(sev);
       else next.add(sev);
+      return next;
+    });
+  };
+
+  const togglePack = (id: string) => {
+    setActivePacks((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -81,30 +115,63 @@ export function FindingsList({ findings }: { findings: RunFinding[] }) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle>Findings ({findings.length})</CardTitle>
-          <div className="flex flex-wrap gap-1.5">
-            {SEVERITY_ORDER.map((sev) => {
-              const n = counts[sev];
-              if (n === 0) return null;
-              const active = activeSeverities.has(sev);
-              return (
-                <button
-                  key={sev}
-                  type="button"
-                  onClick={() => toggleSeverity(sev)}
-                  className={`${CHIP_BASE} ${SEVERITY_STYLES[sev]} ${
-                    active ? '' : 'opacity-40 hover:opacity-70'
-                  }`}
-                  aria-pressed={active}
-                  aria-label={`Toggle ${sev} (${n})`}
-                >
-                  <span className="tabular-nums">{n}</span>
-                  <span>{sev}</span>
-                </button>
-              );
-            })}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle>Findings ({findings.length})</CardTitle>
+            <div className="flex flex-wrap gap-1.5">
+              {SEVERITY_ORDER.map((sev) => {
+                const n = severityCounts[sev];
+                if (n === 0) return null;
+                const active = activeSeverities.has(sev);
+                return (
+                  <button
+                    key={sev}
+                    type="button"
+                    onClick={() => toggleSeverity(sev)}
+                    className={`${CHIP_BASE} ${SEVERITY_STYLES[sev]} ${
+                      active ? '' : 'opacity-40 hover:opacity-70'
+                    }`}
+                    aria-pressed={active}
+                    aria-label={`Toggle ${sev} (${n})`}
+                  >
+                    <span className="tabular-nums">{n}</span>
+                    <span>{sev}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
+          {/* Pack filter — only render when more than one pack is represented
+              in the result set, otherwise the chip row is just noise. */}
+          {Object.keys(packCounts).length > 1 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-ob-dim">
+                pack
+              </span>
+              {Object.entries(packCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([pid, n]) => {
+                  const label =
+                    pid === 'unknown' ? 'Other' : (PACKS[pid as PackId]?.label ?? pid);
+                  const active = activePacks.has(pid);
+                  return (
+                    <button
+                      key={pid}
+                      type="button"
+                      onClick={() => togglePack(pid)}
+                      className={`${CHIP_BASE} border-ob-line bg-ob-bg/40 text-ob-muted ${
+                        active ? '' : 'opacity-40 hover:opacity-70'
+                      }`}
+                      aria-pressed={active}
+                      aria-label={`Toggle ${label} (${n})`}
+                    >
+                      <span className="tabular-nums">{n}</span>
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent>
