@@ -1,0 +1,26 @@
+{
+  "name": "@oraclebot/cli",
+  "version": "0.1.0",
+  "description": "OracleBot CLI — readiness scans from any shell, no GitHub required.",
+  "type": "module",
+  "bin": {
+    "oraclebot": "./bin/oraclebot.mjs"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "smoke": "node bin/oraclebot.mjs --help"
+  },
+  "license": "UNLICENSED",
+  "homepage": "https://oraclebot.net",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/acanals2/OracleBot.git",
+    "directory": "cli"
+  }
+}
