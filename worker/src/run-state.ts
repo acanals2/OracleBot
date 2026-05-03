@@ -14,6 +14,7 @@ import {
   type RunFinding,
 } from './db.js';
 import { logger } from './logger.js';
+import { notifyRunCompleted, notifyRunFailed } from './notify.js';
 
 export async function appendEvent(
   runId: string,
@@ -93,6 +94,9 @@ export async function setCompleted(opts: {
       );
     }
   }
+
+  // Fire-and-forget notification. notify* swallows its own errors.
+  await notifyRunCompleted(opts.runId);
 }
 
 /**
@@ -143,6 +147,7 @@ export async function setFailed(runId: string, errorSummary: string) {
     .set({ status: 'failed', completedAt: new Date(), updatedAt: new Date() })
     .where(eq(runs.id, runId));
   await appendEvent(runId, 'run_failed', errorSummary);
+  await notifyRunFailed(runId, errorSummary);
 }
 
 export async function recordMetric(opts: {

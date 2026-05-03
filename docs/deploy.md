@@ -121,3 +121,70 @@ table and can be re-enqueued via the admin route once the rollback is healthy.
 
 If any step fails, check `GET /api/admin/dead-jobs` (org-owner only) for
 exhausted-retry jobs and Sentry for unhandled errors.
+
+---
+
+## Operations checklist (manual, in your hands)
+
+These are the operator-side actions that keep the system healthy. None of
+them are code; they're things the operator does on Railway / Vercel / DNS.
+
+### Worker readiness probe
+
+The worker exposes two health endpoints:
+
+- `GET /healthz` — returns 200 as long as the Node process is alive.
+  **Do NOT use this as Railway's healthcheck.** It will return 200 even when
+  Redis is down or the DB is unreachable, and Railway will keep routing to
+  a half-broken worker.
+- `GET /readyz` — returns 200 only when both Redis (`PING`) and Postgres
+  (`SELECT 1`) succeed. **This is the one Railway should probe.**
+
+Railway healthcheck path: `/readyz`. Verify in Railway → service →
+Settings → Healthcheck → Path is `/readyz` (not `/healthz`).
+
+If `/readyz` ever returns 503, the response body has the failing checks:
+
+```json
+{"ok":false,"checks":{"redis":"timeout","db":"ok"}}
+```
+
+Common fixes:
+- `redis: timeout` — Redis service down or `REDIS_URL` env var pointing at
+  the wrong instance. Restart the Redis service in Railway.
+- `db: ECONNRESET` — Neon connection pool stale. Worker auto-reconnects,
+  but if it persists, restart the worker service.
+
+### oraclebot.net DNS
+
+The marketing site lives at the repo root (`index.html`, `ai-built-apps.html`,
+`probes.html`, `trading.html`, etc) and deploys to Vercel from the **root**
+of the repo as a separate Vercel project (separate from `platform/`).
+
+Required DNS records on the apex domain:
+
+| Type | Name | Value | Notes |
+| --- | --- | --- | --- |
+| A | `@` (apex) | `76.76.21.21` | Vercel apex IP. Use Vercel's CNAME flattening if your registrar supports it. |
+| CNAME | `www` | `cname.vercel-dns.com` | |
+
+Verify:
+- `dig oraclebot.net +short` returns Vercel IPs
+- `https://oraclebot.net/` serves the marketing hero (`<title>` starts with "OracleBot")
+- `https://oraclebot.net/probes.html` lists the 48-probe catalogue
+- `https://oraclebot.net/api/badge/<verificationId>.svg` (proxied to the
+  platform Vercel project) returns the readiness badge SVG
+
+If `https://oraclebot.net/` shows a different product ("Oracle · build
+anything, live" or similar placeholder), the apex is pointing at the wrong
+Vercel project. Fix in Vercel → marketing project → Settings → Domains →
+add `oraclebot.net` and `www.oraclebot.net`, remove from any other project.
+
+### Post-deploy verification one-liner
+
+```sh
+curl -s https://<worker-host>/readyz | jq .
+curl -s -o /dev/null -w '%{http_code}\n' https://oraclebot.net/probes.html
+```
+
+Both should report `{"ok":true,...}` and `200` respectively.

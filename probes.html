@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OracleBot probe catalogue — every check we run, severity tier, what fires it</title>
+<meta name="description" content="The full OracleBot probe catalogue. 48 probes across five packs — Web Classics, AI-Built Apps, LLM Endpoints, MCP Server, Agent Runtime. Click any probe to see what it checks and an example finding.">
+<meta name="theme-color" content="#07080B">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/pages.css">
+<meta property="og:title" content="OracleBot probe catalogue">
+<meta property="og:description" content="Every check OracleBot runs against AI-built software, with severity tiers and example findings.">
+<meta property="og:type" content="website">
+</head>
+<body>
+
+<header class="nav">
+  <a href="index.html" class="nav__brand" aria-label="OracleBot home">
+    <span class="mark">O</span>
+    <span><b>OracleBot</b><small>v0.1 · early access</small></span>
+  </a>
+  <nav class="nav__links">
+    <a href="index.html#problem">Problem</a>
+    <a href="index.html#how">How it works</a>
+    <a href="probes.html" class="is-active">Probes</a>
+    <a href="ai-built-apps.html">AI-built apps</a>
+    <a href="trading.html">Trading</a>
+    <a href="index.html#commitments">Commitments</a>
+  </nav>
+  <div class="nav__cta">
+    <span class="status">Waitlist open</span>
+    <a href="index.html#waitlist" class="btn btn--signal">Join waitlist <span class="arrow">&rarr;</span></a>
+  </div>
+  <button class="nav__burger" aria-label="Menu"><span></span><span></span><span></span></button>
+</header>
+
+<main>
+
+  <!-- ========== HERO ========== -->
+  <section class="hero hero--compact">
+    <div class="wrap hero__inner hero__inner--single">
+      <div class="hero__copy hero__copy--centered">
+        <span class="eyebrow" data-reveal>Probe catalogue · public</span>
+        <h1 class="hero__title" data-reveal data-reveal-delay="1">
+          Every check we run.
+          <em>No black box.</em>
+        </h1>
+        <p class="hero__sub" data-reveal data-reveal-delay="2">
+          OracleBot ships <span id="probe-count" class="num">—</span> probes across five packs. Each one is read-only, bounded, and documented below. Click any probe to see what it checks, the severity tier, and an example finding.
+        </p>
+        <div class="hero__ctas" data-reveal data-reveal-delay="3">
+          <a href="index.html#waitlist" class="btn btn--signal">Join the waitlist <span class="arrow">&rarr;</span></a>
+          <a href="ai-built-apps.html" class="btn btn--ghost">For AI-built apps <span class="arrow">&rarr;</span></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PACKS ========== -->
+  <section class="problem" id="packs">
+    <div class="wrap">
+      <div id="pack-list"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Modal infrastructure (shared with index.html and ai-built-apps.html) -->
+<dialog id="ob-modal" class="ob-modal" aria-modal="true" aria-labelledby="ob-modal-title">
+  <div class="ob-modal__shell">
+    <header class="ob-modal__head">
+      <p id="ob-modal-eyebrow" class="ob-modal__eyebrow"></p>
+      <h2 id="ob-modal-title" class="ob-modal__title"></h2>
+      <button type="button" class="ob-modal__close" data-modal-close aria-label="Close modal">&times;</button>
+    </header>
+    <div id="ob-modal-body" class="ob-modal__body"></div>
+  </div>
+</dialog>
+
+<footer class="footer">
+  <div class="wrap footer__grid">
+    <div class="footer__brand">
+      <div class="mark-row">
+        <span class="nav__brand"><span class="mark">O</span></span>
+        <b>OracleBot</b>
+      </div>
+      <p>The readiness layer for AI-built software.</p>
+    </div>
+    <div>
+      <h5>Product</h5>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="probes.html">Probe catalogue</a></li>
+        <li><a href="ai-built-apps.html">AI-built apps</a></li>
+        <li><a href="trading.html">Trading &amp; fintech</a></li>
+        <li><a href="sample-readiness-report.html">Sample report</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap footer__legal">
+    <span>&copy; 2026 OracleBot</span>
+    <span>oraclebot.net</span>
+  </div>
+</footer>
+
+<script>
+  // Renders pack-by-pack. Each probe card uses the same data-modal-open
+  // hooks main.js already binds, so the Probe Explorer modal works
+  // identically to the homepage and ai-built-apps page.
+  (async function () {
+    const list = document.getElementById('pack-list');
+    const countEl = document.getElementById('probe-count');
+    if (!list) return;
+    try {
+      const res = await fetch('js/data/probes.json', { cache: 'force-cache' });
+      const data = await res.json();
+      const packs = (data.packs || []);
+      const totalProbes = packs.reduce((n, p) => n + (p.probes ? p.probes.length : 0), 0);
+      if (countEl) countEl.textContent = String(totalProbes);
+
+      list.innerHTML = packs.map((pack) => {
+        const shipped = pack.shipped !== false;
+        const probeCount = (pack.probes || []).length;
+        return `
+          <section class="pack-section" id="pack-${pack.id}">
+            <div class="section__head pack-section__head" data-reveal>
+              <span class="eyebrow">
+                ${escapeHtml(pack.label)}
+                ${shipped ? '· shipped' : '· in development'}
+                · ${probeCount} probe${probeCount === 1 ? '' : 's'}
+              </span>
+              <h2 class="display display--lg">${escapeHtml(pack.tagline || pack.label)}</h2>
+              <p class="lede">${escapeHtml(pack.description)}</p>
+              <p class="pack-section__audience"><span class="dim">Built for:</span> ${escapeHtml(pack.audience || '')}</p>
+            </div>
+            ${probeCount === 0
+              ? '<p class="pack-section__empty">No probes shipped in this pack yet.</p>'
+              : `<div class="probe-grid">${
+                  (pack.probes || []).map((p) => `
+                    <button type="button" class="probe-card"
+                            data-modal-open="probe-explorer" data-probe-id="${escapeAttr(p.id)}"
+                            aria-haspopup="dialog">
+                      <span class="probe-card__sev ob-probe__sev--${escapeAttr(p.severity)}">${escapeHtml(p.severity)}</span>
+                      <h3 class="probe-card__title">${escapeHtml(p.title)}</h3>
+                      <p class="probe-card__desc">${escapeHtml(p.description)}</p>
+                    </button>
+                  `).join('')
+                }</div>`
+            }
+          </section>
+        `;
+      }).join('');
+    } catch (_) {
+      list.innerHTML = '<p style="color: var(--ink-dim);">Could not load probe catalogue.</p>';
+    }
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    function escapeAttr(s) {
+      return escapeHtml(s).replace(/`/g, '&#96;');
+    }
+  })();
+</script>
+<script src="js/main.js"></script>
+</body>
+</html>

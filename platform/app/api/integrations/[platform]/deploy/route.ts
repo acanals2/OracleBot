@@ -33,6 +33,7 @@ import { createRun } from '@/lib/runs';
 import { enqueueExecuteRun } from '@/lib/queue';
 import { estimateRunCostCents } from '@/lib/billing';
 import { logger, newTraceId } from '@/lib/logger';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +46,22 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 
   if (!isWebhookPlatform(platform)) {
     return NextResponse.json({ ok: false, error: 'unknown_platform' }, { status: 404 });
+  }
+
+  // Coarse per-IP rate limit. Applied before any DB work or signature
+  // verification so spammers can't make us do crypto + a row lookup per
+  // request. Real codegen platforms send dozens of webhooks per hour at
+  // most; 60/min is generous. X-Forwarded-For is what Vercel sets.
+  const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0]?.trim() || 'unknown';
+  const ipLimit = checkRateLimit(`webhook:${platform}:ip:${ip}`, {
+    windowMs: 60_000,
+    max: 60,
+  });
+  if (!ipLimit.allowed) {
+    return NextResponse.json(
+      { ok: false, error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(ipLimit.retryAfterSec) } },
+    );
   }
 
   // Read the raw body exactly — needed for signature verification. We can't
@@ -93,6 +110,25 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
       'signature verification failed',
     );
     return NextResponse.json({ ok: false, error: 'bad_signature' }, { status: 401 });
+  }
+
+  // Per-subscription rate limit. Defends against a leaked secret being
+  // used to drive run creation. 20 runs/hour per subscription is well
+  // above realistic deploy frequency (Lovable / Bolt / v0 pipelines push
+  // a few times an hour at peak).
+  const subLimit = checkRateLimit(`webhook:sub:${sub.id}`, {
+    windowMs: 60 * 60_000,
+    max: 20,
+  });
+  if (!subLimit.allowed) {
+    log.warn(
+      { event: 'webhook.rate_limited', subscriptionId: sub.id, platform },
+      'subscription rate-limited',
+    );
+    return NextResponse.json(
+      { ok: false, error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(subLimit.retryAfterSec) } },
+    );
   }
 
   // Idempotency: dedupe by (<platform>:<deliveryId>).
