@@ -77,10 +77,13 @@ const AI_BUILT_APPS_PROBE_IDS = [
   'client_side_auth_only',
 ];
 
-// Phase 13 starter — two probes shipped. Rest of the list tracked in PLAN.md.
+// Phase 13 + 13c — five probes shipped. Rest of the list tracked in PLAN.md.
 const LLM_ENDPOINTS_PROBE_IDS = [
   'system_prompt_extraction',
   'prompt_injection_via_user_content',
+  'pii_echo_in_response',
+  'cost_amplification_attack',
+  'unsafe_tool_call_execution',
 ];
 
 // Phase 13b starter — three probes shipped. Rest of the pack tracked in PLAN.md.
