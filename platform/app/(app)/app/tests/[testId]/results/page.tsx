@@ -54,6 +54,12 @@ export default async function TestResultsPage({ params }: { params: Params }) {
                 Export PDF
               </Button>
             </a>
+            <a href={`/api/runs/${run.id}/findings.csv`}>
+              <Button variant="ghost" size="sm">
+                <Download className="mr-2 h-4 w-4" />
+                Findings CSV
+              </Button>
+            </a>
             <form action={`/api/runs/${run.id}/share`} method="POST">
               <Button type="submit" variant="ghost" size="sm">
                 <Share2 className="mr-2 h-4 w-4" />

@@ -1395,3 +1395,22 @@ body.is-modal-open { overflow: hidden; }
   text-align: center;
 }
 
+/* Per-probe permalink (#) appears on hover; fixed position keeps the card
+   layout stable. Uses tabindex=-1 implicitly because it's still keyboard
+   reachable via the parent button. */
+.probe-card { position: relative; }
+.probe-card__permalink {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--ink-dim);
+  opacity: 0;
+  transition: opacity 0.16s, color 0.16s;
+  text-decoration: none;
+}
+.probe-card:hover .probe-card__permalink,
+.probe-card:focus-within .probe-card__permalink { opacity: 1; }
+.probe-card__permalink:hover { color: var(--signal); }
+

@@ -140,12 +140,15 @@
               ? '<p class="pack-section__empty">No probes shipped in this pack yet.</p>'
               : `<div class="probe-grid">${
                   (pack.probes || []).map((p) => `
-                    <button type="button" class="probe-card"
+                    <button type="button" class="probe-card" id="probe-${escapeAttr(p.id)}"
                             data-modal-open="probe-explorer" data-probe-id="${escapeAttr(p.id)}"
                             aria-haspopup="dialog">
                       <span class="probe-card__sev ob-probe__sev--${escapeAttr(p.severity)}">${escapeHtml(p.severity)}</span>
                       <h3 class="probe-card__title">${escapeHtml(p.title)}</h3>
                       <p class="probe-card__desc">${escapeHtml(p.description)}</p>
+                      <a class="probe-card__permalink" href="#probe-${escapeAttr(p.id)}"
+                         aria-label="Permalink to ${escapeAttr(p.title)}"
+                         onclick="event.stopPropagation();">#</a>
                     </button>
                   `).join('')
                 }</div>`
@@ -153,8 +156,35 @@
           </section>
         `;
       }).join('');
+
+      // Deep-link support: if the URL hash matches a probe id, scroll the
+      // card into view and open the Probe Explorer modal. Runs after the
+      // grid is rendered so the target id exists in the DOM.
+      maybeOpenFromHash();
+      window.addEventListener('hashchange', maybeOpenFromHash);
     } catch (_) {
       list.innerHTML = '<p style="color: var(--ink-dim);">Could not load probe catalogue.</p>';
+    }
+    function maybeOpenFromHash() {
+      var h = (window.location.hash || '').replace(/^#/, '');
+      if (!h.startsWith('probe-')) return;
+      var probeId = h.slice('probe-'.length);
+      var card = document.getElementById('probe-' + probeId);
+      if (!card) return;
+      // Defer until window 'load' so the modal infrastructure (main.js,
+      // loaded async at the end of body) has bound its delegated click
+      // handlers. requestAnimationFrame alone fires too early.
+      var fire = function () {
+        card.scrollIntoView({ block: 'center', behavior: 'auto' });
+        card.click();
+      };
+      if (document.readyState === 'complete') {
+        // 50ms cushion: handles the race where readyState=complete but
+        // main.js's own DOMContentLoaded handlers are still queued.
+        setTimeout(fire, 50);
+      } else {
+        window.addEventListener('load', function () { setTimeout(fire, 50); }, { once: true });
+      }
     }
     function escapeHtml(s) {
       return String(s == null ? '' : s)

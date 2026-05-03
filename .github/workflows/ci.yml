@@ -56,3 +56,39 @@ jobs:
           tags: oraclebot-worker:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  cli-smoke:
+    name: CLI smoke (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22']
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # The CLI has zero runtime deps, so npm install is a no-op for runtime.
+      # We still run it to materialise package.json's bin field for `npx`-style
+      # invocations.
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: --help works
+        run: node bin/oraclebot.mjs --help
+      - name: --version works
+        run: node bin/oraclebot.mjs --version
+      - name: Missing-token error path returns non-zero
+        run: |
+          set +e
+          ORACLEBOT_TOKEN= node bin/oraclebot.mjs whoami
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "expected non-zero exit when no token is configured"
+            exit 1
+          fi
+          echo "ok: exit code $rc"
