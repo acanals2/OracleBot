@@ -11,6 +11,7 @@ import {
   List,
   PlusCircle,
   ShieldCheck,
+  Webhook,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +22,7 @@ const links = [
   { href: '/app/workspaces', label: 'Workspaces', icon: Code2, exact: false },
   { href: '/app/settings/domains', label: 'Domains', icon: Globe, exact: false },
   { href: '/app/settings/api-tokens', label: 'API tokens', icon: KeyRound, exact: false },
+  { href: '/app/settings/integrations', label: 'Integrations', icon: Webhook, exact: false },
   { href: '/app/billing', label: 'Billing', icon: CreditCard, exact: false },
 ];
 

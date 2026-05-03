@@ -671,6 +671,72 @@ export const workspaces = pgTable(
 );
 
 /**
+ * Codegen webhook subscriptions — Phase 18.
+ *
+ * Maps a deploy event from an external codegen platform (Lovable, v0, Bolt,
+ * Replit Agent) to an OracleBot org + scan config. Created via the Settings
+ * → Integrations UI; consulted by /api/integrations/<platform>/deploy on
+ * every incoming webhook.
+ *
+ * The `externalProjectId` is whatever the platform calls its project — a
+ * UUID for Lovable, a slug for v0, etc. It IS the lookup key, so it must
+ * match exactly what the platform sends.
+ *
+ * `secret` is the shared-secret the platform signs its payloads with,
+ * stored at-rest. Rotated via the Settings UI.
+ */
+export const webhookPlatformEnum = pgEnum('webhook_platform', [
+  'lovable',
+  'v0',
+  'bolt',
+  'replit_agent',
+  'generic',
+]);
+
+export const webhookSubscriptions = pgTable(
+  'webhook_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    createdByUserId: text('created_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    platform: webhookPlatformEnum('platform').notNull(),
+    /** Platform-specific project identifier (UUID/slug/etc). */
+    externalProjectId: text('external_project_id').notNull(),
+    /** Friendly label for the Settings UI. */
+    label: text('label').notNull(),
+    /** Shared secret used to verify signatures. Stored at rest. */
+    secret: text('secret').notNull(),
+    /** Probe packs to run on every triggered scan. */
+    packs: jsonb('packs').$type<string[]>().notNull(),
+    /** Tier the run is billed against. */
+    productKey: text('product_key').notNull(),
+    /** Min score below which the platform is sent a failure callback. Optional. */
+    minScore: integer('min_score'),
+    /** Bound to a verified target — if null, scan derives URL from payload. */
+    targetVerificationId: uuid('target_verification_id').references(
+      () => targetVerifications.id,
+      { onDelete: 'set null' },
+    ),
+    /** Set false to pause without deleting the row. */
+    enabled: boolean('enabled').notNull().default(true),
+    lastTriggeredAt: timestamp('last_triggered_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgIdx: index('webhook_subscriptions_org_idx').on(t.orgId),
+    platformProjectIdx: uniqueIndex('webhook_subscriptions_platform_project_idx').on(
+      t.platform,
+      t.externalProjectId,
+    ),
+  }),
+);
+
+/**
  * API tokens — Phase 17 (GitHub Action + CI integrations).
  *
  * An API token is org-scoped, attributed to a creating user, and bears the
@@ -826,3 +892,5 @@ export type WebhookEvent = typeof webhookEvents.$inferSelect;
 export type NewWebhookEvent = typeof webhookEvents.$inferInsert;
 export type ApiToken = typeof apiTokens.$inferSelect;
 export type NewApiToken = typeof apiTokens.$inferInsert;
+export type WebhookSubscription = typeof webhookSubscriptions.$inferSelect;
+export type NewWebhookSubscription = typeof webhookSubscriptions.$inferInsert;

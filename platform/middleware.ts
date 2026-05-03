@@ -19,6 +19,7 @@ const PROTECTED_PREFIXES = [
   '/api/verify-target',
   '/api/entitlements',
   '/api/tokens',
+  '/api/webhook-subscriptions',
 ];
 
 const PREVIEW_PROXY_PREFIX = '/preview/';
