@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, Copy, Plus, Power, Sparkles, Trash2, Webhook } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Check, Copy, ExternalLink, Plus, Power, Sparkles, Trash2, Webhook } from 'lucide-react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -309,6 +310,9 @@ function Body({ initial }: { initial: SubscriptionRow[] }) {
         </CardContent>
       </Card>
 
+      {/* Recent deliveries panel */}
+      <DeliveriesPanel />
+
       {/* Reveal-once secret modal */}
       {reveal && (
         <RevealOnce
@@ -467,4 +471,132 @@ function fmtDate(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+interface DeliveryRow {
+  eventId: string;
+  platform: string;
+  deliveryId: string;
+  type: string;
+  receivedAt: string | null;
+  processedAt: string | null;
+  error: string | null;
+  runId: string;
+  runStatus: string;
+  runScore: number | null;
+  runTarget: string | null;
+  runStartedAt: string | null;
+}
+
+function DeliveriesPanel() {
+  const [rows, setRows] = useState<DeliveryRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch('/api/webhook-deliveries');
+        const json = await res.json();
+        if (!res.ok || !json.ok) throw new Error(json?.message ?? 'Failed to load');
+        if (!cancelled) setRows(json.data.deliveries as DeliveryRow[]);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Recent deliveries</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {error && (
+          <p className="rounded-md border border-ob-danger/40 bg-ob-danger/10 p-3 font-mono text-xs text-ob-danger">
+            {error}
+          </p>
+        )}
+        {!error && rows === null && (
+          <p className="text-sm text-ob-muted">Loading…</p>
+        )}
+        {rows && rows.length === 0 && (
+          <p className="text-sm text-ob-muted">
+            No webhook deliveries yet. Once a configured platform sends a deploy event,
+            the run it triggered shows up here.
+          </p>
+        )}
+        {rows && rows.length > 0 && (
+          <ul className="divide-y divide-ob-line/40">
+            {rows.map((d) => (
+              <li
+                key={d.eventId}
+                className="flex flex-wrap items-center justify-between gap-3 py-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider">
+                    <span className="rounded border border-ob-line bg-ob-bg/40 px-1.5 py-0.5 text-ob-muted">
+                      {d.platform}
+                    </span>
+                    <span
+                      className={`rounded border px-1.5 py-0.5 ${runStatusStyle(d.runStatus)}`}
+                    >
+                      {d.runStatus}
+                    </span>
+                    {d.runScore != null && (
+                      <span
+                        className={`rounded border px-1.5 py-0.5 ${scoreStyle(d.runScore)}`}
+                        title="Readiness score"
+                      >
+                        {d.runScore}/100
+                      </span>
+                    )}
+                    <span className="text-ob-dim">
+                      {d.receivedAt ? fmtDate(d.receivedAt) : 'queued'}
+                    </span>
+                  </p>
+                  <p className="mt-1 truncate font-mono text-[11px] text-ob-muted">
+                    target: {d.runTarget ?? '—'}
+                  </p>
+                  <p className="mt-0.5 truncate font-mono text-[10px] text-ob-dim">
+                    delivery {d.deliveryId} · run {d.runId.slice(0, 8)}
+                  </p>
+                  {d.error && (
+                    <p className="mt-1 truncate font-mono text-[11px] text-ob-danger">
+                      error: {d.error.slice(0, 200)}
+                    </p>
+                  )}
+                </div>
+                <Link
+                  href={`/app/tests/${d.runId}/results`}
+                  className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider text-ob-signal hover:underline"
+                >
+                  Open run <ExternalLink className="h-3 w-3" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function runStatusStyle(s: string): string {
+  if (s === 'completed') return 'border-ob-signal/40 bg-ob-signal/10 text-ob-signal';
+  if (s === 'failed' || s === 'timed_out' || s === 'canceled')
+    return 'border-ob-danger/40 bg-ob-danger/10 text-ob-danger';
+  if (s === 'running' || s === 'provisioning')
+    return 'border-ob-warn/40 bg-ob-warn/10 text-ob-warn';
+  return 'border-ob-line text-ob-muted';
+}
+
+function scoreStyle(score: number): string {
+  if (score >= 90) return 'border-ob-signal/40 text-ob-signal';
+  if (score >= 70) return 'border-ob-warn/40 text-ob-warn';
+  return 'border-ob-danger/40 text-ob-danger';
 }

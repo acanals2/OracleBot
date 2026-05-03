@@ -20,6 +20,7 @@ const PROTECTED_PREFIXES = [
   '/api/entitlements',
   '/api/tokens',
   '/api/webhook-subscriptions',
+  '/api/webhook-deliveries',
 ];
 
 const PREVIEW_PROXY_PREFIX = '/preview/';
