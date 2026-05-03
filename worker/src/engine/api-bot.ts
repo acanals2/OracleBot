@@ -19,6 +19,8 @@
  */
 import type { EngineOpts, EngineEvent, BotTick, RawFinding } from './types.js';
 import { logger } from '../logger.js';
+import { packsForLegacyMode, type PackId } from './packs.js';
+import { runMcpServerScan } from './probes/mcp-server.js';
 
 const TICK_INTERVAL_MS = 5_000;
 const RATE_LIMIT_BURST = 50;
@@ -347,6 +349,15 @@ function aggregateTick(state: ApiState, tSeconds: number, windowMs: number): Bot
 export async function* runApiMode(opts: EngineOpts): AsyncGenerator<EngineEvent> {
   const { run, targetUrl, durationMs } = opts;
 
+  // Phase 10/13b: which probe packs the user selected. web_classics is the
+  // default; mcp_server is opt-in for MCP-protocol endpoints.
+  const selectedPacks: PackId[] =
+    run.packs && run.packs.length > 0
+      ? (run.packs as PackId[])
+      : packsForLegacyMode('api');
+  const wantsWebClassics = selectedPacks.includes('web_classics');
+  const wantsMcpServer = selectedPacks.includes('mcp_server');
+
   const state: ApiState = {
     samples: [],
     findings: [],
@@ -354,6 +365,27 @@ export async function* runApiMode(opts: EngineOpts): AsyncGenerator<EngineEvent>
 
   const emittedFindingTitles = new Set<string>();
   const startTime = Date.now();
+
+  // Phase 13b: mcp_server scan runs once at the top, before the OpenAPI
+  // sweep — its findings stream to the live dashboard immediately.
+  if (wantsMcpServer) {
+    try {
+      for await (const finding of runMcpServerScan({ endpointUrl: targetUrl })) {
+        if (!emittedFindingTitles.has(finding.title)) {
+          emittedFindingTitles.add(finding.title);
+          yield finding;
+        }
+      }
+    } catch {
+      // Best-effort, same pattern as ai-built-apps + llm-endpoints.
+    }
+  }
+
+  // If only mcp_server was selected, skip the web_classics OpenAPI sweep.
+  if (!wantsWebClassics) {
+    yield aggregateTick(state, 0, TICK_INTERVAL_MS);
+    return;
+  }
 
   // Discover endpoints
   const endpoints = await discoverEndpoints(targetUrl);

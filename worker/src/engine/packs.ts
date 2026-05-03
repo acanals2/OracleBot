@@ -150,18 +150,18 @@ const LLM_ENDPOINTS_PROBE_IDS = [
 /**
  * mcp_server — Phase 13. Targets MCP server endpoints. HTTP/SSE only;
  * stdio transport is out of scope until Phase 20+.
+ *
+ * Shipped (this commit): missing_auth_on_mcp_transport,
+ *   credential_leak_in_tool_desc, tool_description_injection.
+ * Pending: tool_name_collision, unbounded_resource_list,
+ *   tool_invocation_without_confirmation, cross_resource_access,
+ *   schema_violation_on_tool_input, capability_escalation_via_sampling,
+ *   logging_sensitive_data.
  */
 const MCP_SERVER_PROBE_IDS = [
-  'tool_description_injection',
-  'credential_leak_in_tool_desc',
-  'tool_name_collision',
-  'unbounded_resource_list',
   'missing_auth_on_mcp_transport',
-  'tool_invocation_without_confirmation',
-  'cross_resource_access',
-  'schema_violation_on_tool_input',
-  'capability_escalation_via_sampling',
-  'logging_sensitive_data',
+  'credential_leak_in_tool_desc',
+  'tool_description_injection',
 ];
 
 /**
@@ -206,7 +206,7 @@ export const PACKS: Record<PackId, PackDefinition> = {
       'Model Context Protocol servers exposed over HTTP or SSE. Probes for tool poisoning, credential leakage in tool descriptions, capability escalation, and missing transport auth.',
     probeIds: MCP_SERVER_PROBE_IDS,
     requiredEngines: new Set<ProbeEngine>(['api']),
-    available: false,
+    available: true,
   },
   agent_runtime: {
     id: 'agent_runtime',

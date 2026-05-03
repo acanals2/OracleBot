@@ -63,10 +63,14 @@
       "id": "mcp_server",
       "label": "MCP Server",
       "tagline": "Tool poisoning and capability-escalation probes for MCP servers.",
-      "description": "Tool-description injection, credential leakage in tool schemas, missing transport auth, cross-resource access, capability escalation via sampling. HTTP / SSE transport only.",
+      "description": "Missing transport auth, credential leakage in tool descriptions, and tool-description injection shipped today. Tool-name collision, unbounded resource list, capability escalation via sampling, and more follow.",
       "audience": "Teams deploying MCP servers that expose tools to AI hosts.",
-      "shipped": false,
-      "probes": []
+      "shipped": true,
+      "probes": [
+        { "id": "missing_auth_on_mcp_transport", "title": "MCP transport accepts unauthenticated tool listings", "severity": "critical", "description": "Connects to the MCP server's HTTP/SSE transport without credentials and issues an unauthenticated tools/list JSON-RPC request. Servers that reply with a populated tool catalog leak the full surface to anyone on the internet." },
+        { "id": "credential_leak_in_tool_desc", "title": "Credentials embedded in tool descriptions / parameter schemas", "severity": "critical", "description": "Calls tools/list and pattern-matches the returned descriptions and parameter schemas for known secret formats (OpenAI / Anthropic / Stripe / GitHub / generic JWTs). Any AI host that calls these tools sees the credentials in plaintext." },
+        { "id": "tool_description_injection", "title": "Tool description contains instruction-shaped content", "severity": "high", "description": "Calls tools/list and flags descriptions that contain instruction-shaped patterns (\"ignore previous\", \"system:\", \"</tool>\", explicit override keywords). An attacker who controls a tool description can hijack the host model into following arbitrary instructions." }
+      ]
     },
     {
       "id": "agent_runtime",

@@ -83,17 +83,11 @@ const LLM_ENDPOINTS_PROBE_IDS = [
   'prompt_injection_via_user_content',
 ];
 
+// Phase 13b starter — three probes shipped. Rest of the pack tracked in PLAN.md.
 const MCP_SERVER_PROBE_IDS = [
-  'tool_description_injection',
-  'credential_leak_in_tool_desc',
-  'tool_name_collision',
-  'unbounded_resource_list',
   'missing_auth_on_mcp_transport',
-  'tool_invocation_without_confirmation',
-  'cross_resource_access',
-  'schema_violation_on_tool_input',
-  'capability_escalation_via_sampling',
-  'logging_sensitive_data',
+  'credential_leak_in_tool_desc',
+  'tool_description_injection',
 ];
 
 const AGENT_RUNTIME_PROBE_IDS: string[] = [];
@@ -140,10 +134,10 @@ export const PACKS: Record<PackId, PackDefinition> = {
     label: 'MCP Server',
     tagline: 'Tool poisoning and capability-escalation probes for MCP servers.',
     description:
-      'Tool-description injection, credential leakage in tool schemas, missing transport auth, cross-resource access, capability escalation via sampling. HTTP / SSE transport only.',
+      'Missing transport auth, credential leakage in tool descriptions, and tool-description injection shipped today. Tool-name collision, unbounded resource list, capability escalation via sampling, and more follow.',
     probeIds: MCP_SERVER_PROBE_IDS,
     requiredEngines: new Set<ProbeEngine>(['api']),
-    available: false,
+    available: true,
     icon: Wrench,
     audience: 'Teams deploying MCP servers that expose tools to AI hosts.',
   },
