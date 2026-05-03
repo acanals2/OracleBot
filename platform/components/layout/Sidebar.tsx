@@ -14,6 +14,14 @@ import {
   Webhook,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PROBE_MANIFEST } from '@/data/probe-manifest';
+
+// Computed at module load — the manifest is static. Total = probes in
+// shipped packs only; deferred packs (Agent Runtime) don't pad the number.
+const PROBE_TOTAL = PROBE_MANIFEST.packs
+  .filter((p) => p.shipped)
+  .reduce((n, p) => n + p.probes.length, 0);
+const SHIPPED_PACKS = PROBE_MANIFEST.packs.filter((p) => p.shipped).length;
 
 const links = [
   { href: '/app', label: 'Overview', icon: LayoutDashboard, exact: true },
@@ -65,10 +73,26 @@ export function Sidebar() {
         })}
       </nav>
       <div className="border-t border-ob-line p-2">
+        <a
+          href="https://oraclebot.net/probes.html"
+          target="_blank"
+          rel="noreferrer"
+          className="block rounded-lg px-3 py-2 text-left transition-colors hover:bg-ob-surface/60"
+        >
+          <p className="font-mono text-[9px] uppercase tracking-wider text-ob-dim">
+            Probe coverage
+          </p>
+          <p className="mt-0.5 text-sm text-ob-ink">
+            <span className="font-mono tabular-nums text-ob-signal">{PROBE_TOTAL}</span>
+            <span className="text-ob-muted"> probes · </span>
+            <span className="font-mono tabular-nums">{SHIPPED_PACKS}</span>
+            <span className="text-ob-muted"> packs</span>
+          </p>
+        </a>
         <Link
           href="/safety"
           className={cn(
-            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
+            'mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
             isActive(pathname, '/safety', false)
               ? 'bg-ob-surface text-ob-signal'
               : 'text-ob-muted hover:bg-ob-surface/60 hover:text-ob-ink',

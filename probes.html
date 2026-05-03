@@ -11,9 +11,18 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/pages.css">
-<meta property="og:title" content="OracleBot probe catalogue">
+<meta property="og:title" content="OracleBot probe catalogue · 48 probes · 5 packs">
 <meta property="og:description" content="Every check OracleBot runs against AI-built software, with severity tiers and example findings.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://oraclebot.net/probes.html">
+<meta property="og:image" content="https://oraclebot.net/og/probes.svg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="OracleBot probe catalogue: 48 probes across 5 packs (Web Classics, AI-Built Apps, LLM Endpoints, MCP Server, Agent Runtime).">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="OracleBot probe catalogue">
+<meta name="twitter:description" content="48 probes. 5 packs. No black box.">
+<meta name="twitter:image" content="https://oraclebot.net/og/probes.svg">
 </head>
 <body>
 
@@ -56,6 +65,13 @@
           <a href="ai-built-apps.html" class="btn btn--ghost">For AI-built apps <span class="arrow">&rarr;</span></a>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ========== PACK QUICK-NAV ========== -->
+  <section class="pack-nav-section" aria-label="Jump to pack">
+    <div class="wrap">
+      <nav id="pack-nav" class="pack-nav" aria-label="Probe packs"></nav>
     </div>
   </section>
 
@@ -120,6 +136,21 @@
       const packs = (data.packs || []);
       const totalProbes = packs.reduce((n, p) => n + (p.probes ? p.probes.length : 0), 0);
       if (countEl) countEl.textContent = String(totalProbes);
+
+      // Pack quick-nav chips. Anchor-link to each #pack-<id>.
+      const navEl = document.getElementById('pack-nav');
+      if (navEl) {
+        navEl.innerHTML = packs.map((pack) => {
+          const c = (pack.probes || []).length;
+          const shipped = pack.shipped !== false;
+          return `
+            <a class="pack-chip${shipped ? '' : ' is-deferred'}" href="#pack-${escapeAttr(pack.id)}">
+              <span class="pack-chip__label">${escapeHtml(pack.label)}</span>
+              <span class="pack-chip__count">${c}</span>
+            </a>
+          `;
+        }).join('');
+      }
 
       list.innerHTML = packs.map((pack) => {
         const shipped = pack.shipped !== false;

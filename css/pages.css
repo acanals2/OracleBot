@@ -1395,6 +1395,58 @@ body.is-modal-open { overflow: hidden; }
   text-align: center;
 }
 
+/* Pack quick-nav chip row sits between the hero and the pack sections.
+   Sticky at the top once the user scrolls past the hero so jumping
+   between packs stays one click away. */
+.pack-nav-section {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 16px 0;
+  background: rgba(7, 8, 11, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.pack-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.pack-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  text-decoration: none;
+  transition: border-color 0.16s, color 0.16s, background 0.16s;
+}
+.pack-chip:hover {
+  border-color: rgba(124, 240, 192, 0.35);
+  color: var(--ink);
+  background: rgba(124, 240, 192, 0.04);
+}
+.pack-chip__count {
+  font-size: 10px;
+  color: var(--ink-dim);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+.pack-chip.is-deferred { opacity: 0.5; }
+.pack-chip.is-deferred .pack-chip__count::after {
+  content: ' · soon';
+  color: var(--ink-dim);
+}
+
 /* Per-probe permalink (#) appears on hover; fixed position keeps the card
    layout stable. Uses tabindex=-1 implicitly because it's still keyboard
    reachable via the parent button. */

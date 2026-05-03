@@ -1,0 +1,13 @@
+# oraclebot.net — marketing site
+# Allow indexing of all marketing pages. The /app/* surfaces are auth-walled
+# and live on a different Vercel project; nothing private leaks here.
+
+User-agent: *
+Allow: /
+
+# Disallow scraping of the API route prefix; these return JSON for the
+# authed app and 404/401 for crawlers, but excluding them keeps the
+# crawl budget on documentation pages.
+Disallow: /api/
+
+Sitemap: https://oraclebot.net/sitemap.xml
