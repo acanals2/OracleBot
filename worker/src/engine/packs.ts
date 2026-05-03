@@ -138,11 +138,7 @@ const AI_BUILT_APPS_PROBE_IDS = [
 
 /**
  * llm_endpoints — Phase 13. Targets HTTP endpoints wrapping an LLM.
- *
- * Shipped: system_prompt_extraction, prompt_injection_via_user_content,
- *   pii_echo_in_response, cost_amplification_attack, unsafe_tool_call_execution.
- * Pending: jailbreak_bypass, hallucination_on_factual_query,
- *   missing_output_length_cap, no_rate_limit_on_llm_endpoint, response_format_violation.
+ * Full catalog (10/10) shipped.
  */
 const LLM_ENDPOINTS_PROBE_IDS = [
   'system_prompt_extraction',
@@ -150,6 +146,11 @@ const LLM_ENDPOINTS_PROBE_IDS = [
   'pii_echo_in_response',
   'cost_amplification_attack',
   'unsafe_tool_call_execution',
+  'jailbreak_bypass',
+  'hallucination_on_factual_query',
+  'missing_output_length_cap',
+  'no_rate_limit_on_llm_endpoint',
+  'response_format_violation',
 ];
 
 /**

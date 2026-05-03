@@ -78,13 +78,18 @@ const AI_BUILT_APPS_PROBE_IDS = [
   'dependency_with_known_cve',
 ];
 
-// Phase 13 + 13c — five probes shipped. Rest of the list tracked in PLAN.md.
+// Full catalog (10/10) — Phase 13 + 13c + 13d.
 const LLM_ENDPOINTS_PROBE_IDS = [
   'system_prompt_extraction',
   'prompt_injection_via_user_content',
   'pii_echo_in_response',
   'cost_amplification_attack',
   'unsafe_tool_call_execution',
+  'jailbreak_bypass',
+  'hallucination_on_factual_query',
+  'missing_output_length_cap',
+  'no_rate_limit_on_llm_endpoint',
+  'response_format_violation',
 ];
 
 // Phase 13b starter — three probes shipped. Rest of the pack tracked in PLAN.md.
