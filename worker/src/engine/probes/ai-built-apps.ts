@@ -115,6 +115,36 @@ const PROBES: ProbeDefinition[] = [
     description:
       'Pulls fetch() / axios calls to internal /api/* routes out of the bundle, then attempts each one without cookies. Routes that return user-shaped JSON anonymously are likely gated only by client-side conditional renders.',
   },
+  {
+    id: 'unvalidated_redirect',
+    pack: 'ai_built_apps',
+    engine: 'site',
+    category: 'integration_bug',
+    defaultSeverity: 'high',
+    title: 'Auth/login route forwards to attacker-controlled URL',
+    description:
+      'Probes common auth/login routes with a `?redirect=` / `?next=` / `?return_to=` parameter pointing to a foreign origin. Flags when the response 30x-redirects to the foreign URL or its HTML body location-replaces to it. Open redirects on auth routes enable phishing flows that survive the "is this a real login page?" check.',
+  },
+  {
+    id: 'missing_csrf_protection',
+    pack: 'ai_built_apps',
+    engine: 'site',
+    category: 'integration_bug',
+    defaultSeverity: 'high',
+    title: 'State-mutating POST accepted without CSRF token',
+    description:
+      'Sends cross-origin POST requests to discovered API routes (with a foreign Origin header) carrying minimal but valid-shaped bodies. Flags 200 responses on routes that should be CSRF-gated. AI-codegen apps frequently miss CSRF protection on Next.js / Express / Hono API routes.',
+  },
+  {
+    id: 'dependency_with_known_cve',
+    pack: 'ai_built_apps',
+    engine: 'site',
+    category: 'integration_bug',
+    defaultSeverity: 'medium',
+    title: 'Client bundle contains a library version with a known CVE',
+    description:
+      'Pattern-matches the client bundle for version strings of well-known JS libraries with high-impact published CVEs (jQuery, lodash, axios, dompurify, marked, Next.js). Useful as a fast first-pass; does not replace a full SCA tool but catches the most common AI-codegen miss: shipping with whatever version was current 6+ months ago.',
+  },
 ];
 
 let registered = false;
@@ -194,6 +224,15 @@ export async function* runAiBuiltAppsScan(
 
   // 9. — client-side-only auth. Reuses bundle list to find /api/* refs.
   for await (const finding of probeClientSideAuthOnly(target, bundles, signal)) yield finding;
+
+  // 10. — open redirect on auth routes (Pass C).
+  for await (const finding of probeUnvalidatedRedirect(target, signal)) yield finding;
+
+  // 11. — CSRF on /api/* routes pulled from the bundle (Pass C).
+  for await (const finding of probeMissingCsrfProtection(target, bundles, signal)) yield finding;
+
+  // 12. — known-vulnerable library versions in the bundle (Pass C).
+  for await (const finding of probeDependencyWithKnownCve(bundles)) yield finding;
 
   // 5. — CORS on API routes
   for await (const finding of probeInsecureCors(target, signal)) yield finding;
@@ -1098,4 +1137,299 @@ async function safeFetch(
     clearTimeout(timeout);
     init.signal?.removeEventListener('abort', onAbort);
   }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Probe 10 — unvalidated_redirect
+//
+// Probes well-known auth-route patterns with a foreign-origin `?redirect=`
+// / `?next=` / `?return_to=` parameter. Detection is two-pronged:
+//   - HTTP 30x with Location pointing at the foreign origin
+//   - HTML body that does location.replace() / window.location = to it
+// ────────────────────────────────────────────────────────────────────────────
+
+const REDIRECT_ROUTES = ['/login', '/sign-in', '/auth/login', '/api/auth/signin', '/oauth/authorize'];
+const REDIRECT_PARAM_NAMES = ['redirect', 'redirect_to', 'redirectTo', 'next', 'return_to', 'returnTo', 'callbackUrl', 'continue'];
+const REDIRECT_FOREIGN = 'https://oraclebot-redirect-canary.invalid';
+const REDIRECT_LOCATION_PATTERN = new RegExp(
+  `(?:location\\.(?:href|replace)\\s*=|<meta[^>]+url=)\\s*['"]?${REDIRECT_FOREIGN}`,
+  'i',
+);
+
+async function* probeUnvalidatedRedirect(
+  target: URL,
+  signal: AbortSignal | undefined,
+): AsyncGenerator<RawFinding> {
+  const hits: { route: string; param: string; via: 'http-30x' | 'html-body' }[] = [];
+  const seen = new Set<string>();
+
+  for (const path of REDIRECT_ROUTES) {
+    if (signal?.aborted) break;
+    for (const param of REDIRECT_PARAM_NAMES) {
+      const url = new URL(path, target);
+      url.searchParams.set(param, REDIRECT_FOREIGN);
+      try {
+        const res = await safeFetch(url.toString(), { signal });
+        if (!res) continue;
+        const key = `${path}:${param}`;
+        if (seen.has(key)) continue;
+        // HTTP-redirect path: 30x with Location pointing at the foreign origin.
+        if (res.status >= 300 && res.status < 400) {
+          const loc = res.headers.get('location') ?? '';
+          if (loc.startsWith(REDIRECT_FOREIGN) || loc === REDIRECT_FOREIGN) {
+            hits.push({ route: path, param, via: 'http-30x' });
+            seen.add(key);
+            continue;
+          }
+        }
+        // HTML-body path: search for the canary URL in client-side redirect code.
+        if (res.status >= 200 && res.status < 300) {
+          const ct = res.headers.get('content-type') ?? '';
+          if (!ct.includes('html')) continue;
+          const body = (await res.text()).slice(0, 16_000);
+          if (REDIRECT_LOCATION_PATTERN.test(body)) {
+            hits.push({ route: path, param, via: 'html-body' });
+            seen.add(key);
+          }
+        }
+      } catch {
+        // ignore individual failures
+      }
+    }
+  }
+
+  if (hits.length === 0) return;
+
+  yield {
+    severity: 'high',
+    category: 'integration_bug',
+    probeId: 'unvalidated_redirect',
+    title: `${hits.length} auth route${hits.length === 1 ? '' : 's'} forward to attacker-controlled URLs`,
+    description: `OracleBot probed ${REDIRECT_ROUTES.length} common auth paths with foreign-origin redirect parameters. ${hits.length} route+param combination${hits.length === 1 ? '' : 's'} forwarded to the canary URL — meaning an attacker can craft links of the form \`https://your-app.com${hits[0]?.route}?${hits[0]?.param}=https://evil.test\` that complete the legit login flow then dump the user on a phishing page.`,
+    reproJson: {
+      steps: [
+        `GET <route>?<param>=${REDIRECT_FOREIGN}`,
+        'Observe HTTP 30x with foreign Location header OR HTML body redirecting to the foreign URL',
+      ],
+      impactedPath: hits.map((h) => h.route).join(', '),
+      hits,
+    },
+    remediation:
+      'Validate redirect targets against an allowlist. Accept only same-origin paths or a small set of pre-approved external destinations. Reject any redirect parameter that resolves to a different host. Treat redirect-target validation as security-critical, not UX-critical.',
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Probe 11 — missing_csrf_protection
+//
+// Cross-origin POST to discovered /api/* routes with a foreign Origin
+// header. Flags 200 responses (NOT 401/403/400) — those mean the route
+// processed the cross-origin write without a CSRF gate.
+//
+// Important nuance: many AI-codegen API routes don't have CSRF protection
+// because they expect Bearer auth, not cookies. We only flag routes where
+// the response BODY suggests a state mutation actually happened (an id,
+// "created", "ok", etc.) — not 200 + an empty body.
+// ────────────────────────────────────────────────────────────────────────────
+
+const CSRF_PROBE_BODY = JSON.stringify({
+  oraclebot_csrf_probe: true,
+  // Random bogus payload that's unlikely to validate against a real schema.
+  email: 'oraclebot-csrf-probe@invalid.test',
+  name: 'OracleBot CSRF Probe',
+});
+const CSRF_FOREIGN_ORIGIN = 'https://oraclebot-csrf-canary.invalid';
+const CSRF_MUTATION_PATTERNS: RegExp[] = [
+  /"(?:id|_id|uuid)"\s*:\s*"[a-zA-Z0-9_-]+"/,
+  /"(?:created|inserted|added|updated)"\s*:/i,
+  /"status"\s*:\s*"(?:created|ok|success)"/i,
+];
+
+async function* probeMissingCsrfProtection(
+  target: URL,
+  bundles: BundleSnapshot[],
+  signal: AbortSignal | undefined,
+): AsyncGenerator<RawFinding> {
+  // Reuse the same /api/* path extraction the client_side_auth_only probe
+  // uses, scoped tighter — only routes that look like state-mutators.
+  const paths = new Set<string>();
+  for (const bundle of bundles) {
+    API_ROUTE_RE.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = API_ROUTE_RE.exec(bundle.body)) !== null) {
+      const raw = m[0].slice(1, -1);
+      if (raw.includes('${') || raw.includes('+ ')) continue;
+      // Heuristic: routes that mention create/update/post/save/sign-up/checkout
+      // are likely mutators. We deliberately don't probe /api/auth/login
+      // (CSRF requires cookies; login is unauthenticated by design).
+      if (raw.includes('/auth/') || raw.includes('/login')) continue;
+      if (/(create|update|delete|post|save|signup|sign-up|checkout|invite|publish|edit)/i.test(raw)) {
+        paths.add(raw);
+      }
+    }
+  }
+  const candidates = [...paths].slice(0, 8);
+  if (candidates.length === 0) return;
+
+  const exploitable: { path: string; status: number; signals: string[] }[] = [];
+  for (const path of candidates) {
+    if (signal?.aborted) break;
+    try {
+      const url = new URL(path, target).toString();
+      const res = await safeFetch(url, {
+        signal,
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin: CSRF_FOREIGN_ORIGIN,
+          referer: CSRF_FOREIGN_ORIGIN + '/',
+        },
+        body: CSRF_PROBE_BODY,
+      });
+      if (!res) continue;
+      // Only 200/201 are interesting. 401/403/400/422/500 = working as intended.
+      if (res.status !== 200 && res.status !== 201) continue;
+      const ct = res.headers.get('content-type') ?? '';
+      if (!ct.includes('json')) continue;
+      const body = (await res.text()).slice(0, 4_000);
+      const signals: string[] = [];
+      for (const pat of CSRF_MUTATION_PATTERNS) {
+        if (pat.test(body)) signals.push(pat.source.slice(0, 40));
+      }
+      if (signals.length === 0) continue;
+      exploitable.push({ path, status: res.status, signals });
+    } catch {
+      // ignore
+    }
+  }
+
+  if (exploitable.length === 0) return;
+
+  yield {
+    severity: 'high',
+    category: 'integration_bug',
+    probeId: 'missing_csrf_protection',
+    title: `${exploitable.length} state-mutating route${exploitable.length === 1 ? '' : 's'} accept cross-origin POSTs`,
+    description: `OracleBot pulled mutation-shaped /api/* routes from the bundle and POSTed to each from a foreign Origin header. ${exploitable.length} route${exploitable.length === 1 ? '' : 's'} returned 200/201 with response bodies indicating successful state changes. If user sessions are cookie-based, a malicious site can trigger these mutations whenever your user has an active session.`,
+    reproJson: {
+      steps: [
+        'POST to <route> with Origin: ' + CSRF_FOREIGN_ORIGIN,
+        'Observe 200/201 with response body suggesting the mutation succeeded',
+      ],
+      impactedPath: exploitable.map((e) => e.path).join(', '),
+      exploitable,
+    },
+    remediation:
+      'Add CSRF protection on cookie-authenticated mutation routes: a same-origin check, a SameSite=Strict session cookie, or a CSRF token verified server-side. If your routes are Bearer-authenticated only (not cookies), document that explicitly so reviewers can verify.',
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Probe 12 — dependency_with_known_cve
+//
+// Pattern-matches client bundles for version strings of high-impact JS
+// libraries with published CVEs. Curated list — not a substitute for a
+// full SCA tool, but catches the most common AI-codegen miss: shipping
+// with whatever version was current 6+ months ago.
+//
+// Each entry pairs a regex that captures the version with a function that
+// decides whether the version is vulnerable. We deliberately under-flag
+// (only flag when sure) to keep severity-correctness high.
+// ────────────────────────────────────────────────────────────────────────────
+
+interface CveCheck {
+  /** Library name shown in findings. */
+  name: string;
+  /** Regex with group 1 = the version string. */
+  re: RegExp;
+  /** Vulnerable predicate. Returns the CVE id if vuln, null if safe. */
+  vulnerable: (version: string) => string | null;
+}
+
+const CVE_CHECKS: CveCheck[] = [
+  {
+    name: 'jQuery',
+    re: /jQuery\s+v?(\d+\.\d+\.\d+)/,
+    vulnerable: (v) => (semverLt(v, '3.5.0') ? 'CVE-2020-11022 / CVE-2020-11023 (XSS via untrusted HTML)' : null),
+  },
+  {
+    name: 'lodash',
+    re: /lodash[^"']*?["']version["']\s*[:=]\s*["'](\d+\.\d+\.\d+)["']/,
+    vulnerable: (v) => (semverLt(v, '4.17.21') ? 'CVE-2021-23337 (command injection in template)' : null),
+  },
+  {
+    name: 'axios',
+    re: /axios[^"']*?["']?version["']?\s*[:=]\s*["'](\d+\.\d+\.\d+)["']/,
+    vulnerable: (v) => (semverLt(v, '1.6.0') ? 'CVE-2023-45857 (CSRF via XSRF-TOKEN echo)' : null),
+  },
+  {
+    name: 'DOMPurify',
+    re: /DOMPurify\s*=\s*\{[^}]*version\s*:\s*["'](\d+\.\d+\.\d+)["']/,
+    vulnerable: (v) => (semverLt(v, '3.0.9') ? 'CVE-2024-26908 (mXSS bypass)' : null),
+  },
+  {
+    name: 'marked',
+    re: /marked[^"']*?["']?version["']?\s*[:=]\s*["'](\d+\.\d+\.\d+)["']/,
+    vulnerable: (v) => (semverLt(v, '4.0.10') ? 'CVE-2022-21680 / CVE-2022-21681 (ReDoS)' : null),
+  },
+  {
+    name: 'Next.js',
+    re: /next-[a-z0-9]+\/_buildManifest\.js[\s\S]*?version["']?\s*[:=]\s*["'](\d+\.\d+\.\d+)/,
+    vulnerable: (v) => (semverLt(v, '14.2.10') ? 'CVE-2024-46982 (cache poisoning) and others' : null),
+  },
+];
+
+async function* probeDependencyWithKnownCve(
+  bundles: BundleSnapshot[],
+): AsyncGenerator<RawFinding> {
+  const hits: { library: string; version: string; cve: string; foundIn: string }[] = [];
+  const seen = new Set<string>();
+
+  for (const bundle of bundles) {
+    for (const check of CVE_CHECKS) {
+      check.re.lastIndex = 0;
+      const m = check.re.exec(bundle.body);
+      if (!m) continue;
+      const version = m[1];
+      const cve = check.vulnerable(version);
+      if (!cve) continue;
+      const dedupe = `${check.name}:${version}`;
+      if (seen.has(dedupe)) continue;
+      seen.add(dedupe);
+      hits.push({ library: check.name, version, cve, foundIn: bundle.url });
+    }
+  }
+
+  if (hits.length === 0) return;
+
+  yield {
+    severity: 'medium',
+    category: 'integration_bug',
+    probeId: 'dependency_with_known_cve',
+    title: `${hits.length} client-side librar${hits.length === 1 ? 'y has' : 'ies have'} known CVEs`,
+    description: `OracleBot pattern-matched the client bundle for high-impact JS libraries with published vulnerabilities. ${hits.map((h) => `${h.library} ${h.version}`).join(', ')}. Update to a patched version. Note: this probe checks a small curated list of high-impact libraries; for a complete SCA pass run a tool like Snyk or npm audit on your package-lock.json.`,
+    reproJson: {
+      steps: [
+        'Open the client bundle in a browser',
+        'Search for the library version string',
+        'Cross-reference against the linked CVE',
+      ],
+      hits,
+    },
+    remediation:
+      'Update the flagged libraries to a patched version. Add a regular `npm audit` step to your CI. For Lovable/v0/Bolt projects, regenerate the project to pick up newer base templates with current dependencies.',
+  };
+}
+
+/** Tiny semver-lt helper — full enough for x.y.z comparisons but not for ranges. */
+function semverLt(a: string, b: string): boolean {
+  const pa = a.split('.').map((n) => parseInt(n, 10));
+  const pb = b.split('.').map((n) => parseInt(n, 10));
+  for (let i = 0; i < 3; i++) {
+    const ai = pa[i] ?? 0;
+    const bi = pb[i] ?? 0;
+    if (ai < bi) return true;
+    if (ai > bi) return false;
+  }
+  return false;
 }

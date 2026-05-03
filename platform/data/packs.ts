@@ -62,9 +62,7 @@ const WEB_CLASSICS_PROBE_IDS = [
   'api_cors_or_security_headers',
 ];
 
-// Pass A + Pass B (4 probes) shipped — see worker/src/engine/probes/ai-built-apps.ts.
-// Lower-leverage follow-ups (CSRF, unvalidated_redirect, CVE) deferred to
-// after Phase 13.
+// Full catalog (12/12) — Pass A + B + C shipped. See worker/src/engine/probes/ai-built-apps.ts.
 const AI_BUILT_APPS_PROBE_IDS = [
   'hardcoded_secret_in_bundle',
   'supabase_anon_key_exposed',
@@ -75,6 +73,9 @@ const AI_BUILT_APPS_PROBE_IDS = [
   'insecure_cors_on_api_routes',
   'missing_rate_limit_on_auth',
   'client_side_auth_only',
+  'unvalidated_redirect',
+  'missing_csrf_protection',
+  'dependency_with_known_cve',
 ];
 
 // Phase 13 + 13c — five probes shipped. Rest of the list tracked in PLAN.md.

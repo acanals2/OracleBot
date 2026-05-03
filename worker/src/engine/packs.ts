@@ -115,12 +115,11 @@ const WEB_CLASSICS_PROBE_IDS = [
  * Cursor / Replit Agent. Many of these mirror failure patterns those
  * platforms generate by default.
  *
- * Shipped:
+ * Shipped (12/12 of the original PLAN.md catalog):
  *   Pass A — secrets, supabase key, error-page leak, debug endpoints, CORS
  *   Pass B — RLS, Firebase rules, auth rate limit, client-side-only auth
- *
- * Pass B remaining (lower leverage; revisit after Phase 13):
- *   unvalidated_redirect, missing_csrf_protection, dependency_with_known_cve
+ *   Pass C — unvalidated_redirect, missing_csrf_protection,
+ *            dependency_with_known_cve
  */
 const AI_BUILT_APPS_PROBE_IDS = [
   'hardcoded_secret_in_bundle',
@@ -132,6 +131,9 @@ const AI_BUILT_APPS_PROBE_IDS = [
   'insecure_cors_on_api_routes',
   'missing_rate_limit_on_auth',
   'client_side_auth_only',
+  'unvalidated_redirect',
+  'missing_csrf_protection',
+  'dependency_with_known_cve',
 ];
 
 /**
