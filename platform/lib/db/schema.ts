@@ -894,3 +894,92 @@ export type ApiToken = typeof apiTokens.$inferSelect;
 export type NewApiToken = typeof apiTokens.$inferInsert;
 export type WebhookSubscription = typeof webhookSubscriptions.$inferSelect;
 export type NewWebhookSubscription = typeof webhookSubscriptions.$inferInsert;
+
+/**
+ * Outbound webhooks — Phase 18b.
+ *
+ * The OracleBot side of the integration: when a run completes (or fails)
+ * we POST a JSON payload to every enabled outbound webhook for the org.
+ * Customers wire these up to Slack, Linear, Sentry, internal incident
+ * pipelines, etc.
+ *
+ * Differs from `webhook_subscriptions` (which is INBOUND — codegen
+ * platforms triggering scans). Same crypto: HMAC-SHA256 over the raw body
+ * using the row's `secret`, hex-encoded, sent as `X-OracleBot-Signature`.
+ */
+export const outboundWebhooks = pgTable(
+  'outbound_webhooks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    createdByUserId: text('created_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    /** Friendly label for the Settings UI ("Slack #ops", "Linear sync"). */
+    label: text('label').notNull(),
+    /** Destination URL — must be HTTPS in production. */
+    url: text('url').notNull(),
+    /** Secret used to sign every POST. Stored at rest; surfaced once on creation. */
+    secret: text('secret').notNull(),
+    /**
+     * Which events to fire on. Currently `run.completed` and `run.failed`.
+     * Stored as a string array so future events (workspace.deployed, etc)
+     * don't require a schema change.
+     */
+    events: jsonb('events').$type<string[]>().notNull(),
+    /** Pause without deleting. */
+    enabled: boolean('enabled').notNull().default(true),
+    /** Last successful HTTP 2xx response wall-clock time. */
+    lastDeliveredAt: timestamp('last_delivered_at', { withTimezone: true }),
+    /** Last error message — populated on non-2xx; cleared on next success. */
+    lastError: text('last_error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgIdx: index('outbound_webhooks_org_idx').on(t.orgId),
+  }),
+);
+
+export type OutboundWebhook = typeof outboundWebhooks.$inferSelect;
+export type NewOutboundWebhook = typeof outboundWebhooks.$inferInsert;
+
+/**
+ * Audit log — Phase 15a.
+ *
+ * Append-only record of org-affecting actions: who minted/revoked a
+ * token, who changed a webhook subscription, who cancelled a run, who
+ * verified a domain. Compliance prerequisite; even before SOC2 conversation
+ * a customer asking "who deleted that webhook" should have an answer.
+ *
+ * Reads are scoped to an org. Writes go through `lib/audit.ts`. Schema
+ * change here triggers a Drizzle migration; the table stays additive
+ * (only new action enum values, never removals).
+ */
+export const auditEvents = pgTable(
+  'audit_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    /** User who performed the action. Null for system actions (webhooks, scheduler). */
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Short stable identifier — e.g. 'token.created', 'run.canceled'. */
+    action: text('action').notNull(),
+    /** Optional resource id touched by the action (run id, token id, etc). */
+    resourceId: text('resource_id'),
+    /** Free-form structured detail. Never store raw secrets here. */
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgCreatedIdx: index('audit_events_org_created_idx').on(t.orgId, t.createdAt),
+    actionIdx: index('audit_events_action_idx').on(t.action),
+  }),
+);
+
+export type AuditEvent = typeof auditEvents.$inferSelect;
+export type NewAuditEvent = typeof auditEvents.$inferInsert;

@@ -6,7 +6,7 @@ import { MetricCard } from '@/components/dashboard/MetricCard';
 import { Button } from '@/components/ui/Button';
 import { Download, Share2 } from 'lucide-react';
 import { requireSession } from '@/lib/auth';
-import { getRunWithDetails } from '@/lib/runs';
+import { getRunWithDetails, listRunsForOrg } from '@/lib/runs';
 import { verificationIdForRun } from '@/lib/badge';
 import { RunSummaryCard } from '@/components/run/RunSummaryCard';
 import { FindingsList } from '@/components/run/FindingsList';
@@ -22,6 +22,10 @@ export default async function TestResultsPage({ params }: { params: Params }) {
   const detail = await getRunWithDetails(session.org.id, testId);
   if (!detail) notFound();
   const { run, findings } = detail;
+  // Other completed runs for the compare dropdown. Cap at 25 to keep
+  // the option list usable; users with more runs can compare via URL.
+  const otherCompletedRuns = (await listRunsForOrg(session.org.id, 25).catch(() => []))
+    .filter((r) => r.id !== run.id && r.status === 'completed');
   // Phase 14: only fetch the verification id when the run actually completed
   // with a real score — saves a query on in-flight or failed runs.
   const verificationId =
@@ -69,6 +73,30 @@ export default async function TestResultsPage({ params }: { params: Params }) {
             <Link href="/app/tests/new">
               <Button size="sm">Re-run with changes</Button>
             </Link>
+            {otherCompletedRuns.length > 0 && (
+              <form className="flex items-center gap-2" action="/app/tests/compare" method="GET">
+                <input type="hidden" name="b" value={run.id} />
+                <select
+                  name="a"
+                  defaultValue=""
+                  className="rounded-md border border-ob-line bg-ob-surface px-2 py-1.5 font-mono text-xs text-ob-ink"
+                  aria-label="Compare with"
+                >
+                  <option value="" disabled>
+                    Compare with…
+                  </option>
+                  {otherCompletedRuns.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name.length > 32 ? r.name.slice(0, 32) + '…' : r.name}
+                      {r.readinessScore != null ? ` · ${r.readinessScore}/100` : ''}
+                    </option>
+                  ))}
+                </select>
+                <Button type="submit" variant="ghost" size="sm">
+                  Diff
+                </Button>
+              </form>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

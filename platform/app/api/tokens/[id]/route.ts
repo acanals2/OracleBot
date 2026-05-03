@@ -4,6 +4,7 @@
 import { requireSession } from '@/lib/auth';
 import { apiError, ok } from '@/lib/api-helpers';
 import { revokeApiToken } from '@/lib/api-tokens';
+import { record as auditRecord } from '@/lib/audit';
 
 type Params = Promise<{ id: string }>;
 
@@ -12,6 +13,12 @@ export async function DELETE(_req: Request, { params }: { params: Params }) {
     const session = await requireSession();
     const { id } = await params;
     await revokeApiToken(session.org.id, id);
+    await auditRecord({
+      orgId: session.org.id,
+      userId: session.user.id,
+      action: 'token.revoked',
+      resourceId: id,
+    });
     return ok({ revoked: id });
   } catch (e) {
     return apiError(e);

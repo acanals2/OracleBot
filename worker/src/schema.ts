@@ -494,6 +494,30 @@ export const shareLinksRelations = relations(shareLinks, ({ one }) => ({
 // Inferred types (use these everywhere, not raw table types)
 // ────────────────────────────────────────────────────────────────────────────
 
+// Phase 18b — outbound webhooks. Worker reads enabled rows on run
+// completion and POSTs HMAC-signed payloads. See worker/src/outbound.ts.
+export const outboundWebhooks = pgTable(
+  'outbound_webhooks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id').notNull(),
+    createdByUserId: text('created_by_user_id').notNull(),
+    label: text('label').notNull(),
+    url: text('url').notNull(),
+    secret: text('secret').notNull(),
+    events: jsonb('events').$type<string[]>().notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    lastDeliveredAt: timestamp('last_delivered_at', { withTimezone: true }),
+    lastError: text('last_error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orgIdx: index('outbound_webhooks_org_idx').on(t.orgId),
+  }),
+);
+export type OutboundWebhook = typeof outboundWebhooks.$inferSelect;
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Org = typeof orgs.$inferSelect;

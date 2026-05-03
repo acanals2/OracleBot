@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   Code2,
   CreditCard,
+  FileSearch,
   Globe,
   KeyRound,
   LayoutDashboard,
@@ -31,6 +32,8 @@ const links = [
   { href: '/app/settings/domains', label: 'Domains', icon: Globe, exact: false },
   { href: '/app/settings/api-tokens', label: 'API tokens', icon: KeyRound, exact: false },
   { href: '/app/settings/integrations', label: 'Integrations', icon: Webhook, exact: false },
+  { href: '/app/settings/outbound-webhooks', label: 'Outbound', icon: Webhook, exact: false },
+  { href: '/app/settings/audit-log', label: 'Audit log', icon: FileSearch, exact: false },
   { href: '/app/billing', label: 'Billing', icon: CreditCard, exact: false },
 ];
 

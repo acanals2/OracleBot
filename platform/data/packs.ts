@@ -90,6 +90,7 @@ const LLM_ENDPOINTS_PROBE_IDS = [
   'missing_output_length_cap',
   'no_rate_limit_on_llm_endpoint',
   'response_format_violation',
+  'markdown_link_injection',
 ];
 
 // Full catalog (10/10) — Phase 13b + 13e.

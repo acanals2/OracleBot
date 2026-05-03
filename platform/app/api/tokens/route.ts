@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { requireSession } from '@/lib/auth';
 import { apiError, ok } from '@/lib/api-helpers';
 import { createApiToken, listApiTokens } from '@/lib/api-tokens';
+import { record as auditRecord } from '@/lib/audit';
 
 const createInputSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -51,6 +52,13 @@ export async function POST(req: NextRequest) {
       userId: session.user.id,
       name: input.name,
       expiresAt,
+    });
+    await auditRecord({
+      orgId: session.org.id,
+      userId: session.user.id,
+      action: 'token.created',
+      resourceId: row.id,
+      metadata: { name: row.name, prefix: row.tokenPrefix, expiresAt: row.expiresAt },
     });
 
     return ok({
